@@ -25,7 +25,7 @@ def get_dataset():
     try:
         with open(pathname, 'rb') as handle:
             dataset = pickle.load(handle)
-            time, theta, omega = dataset[0], dataset[1], dataset[2]
+            time, theta, omega, motor, load = dataset[0], dataset[1], dataset[2], dataset[3], dataset[4]
     except EOFError:
         print("corrupted dataset")
 
