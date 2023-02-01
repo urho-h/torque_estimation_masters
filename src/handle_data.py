@@ -32,7 +32,7 @@ def get_dataset(pathname):
 
     return time, theta, omega, motor, load
 
-def construct_measurement(theta, omega, motor, load, dof, n, t_start):
+def construct_measurement(theta, omega, motor, load, dof, n, t_start, KF=False):
     '''
     Builds the batch measurement matrix.
 
@@ -56,11 +56,15 @@ def construct_measurement(theta, omega, motor, load, dof, n, t_start):
     '''
     measurements = np.vstack([theta[0+t_start,:].reshape(3,1), omega[0+t_start,:].reshape(3,1)])
 
-    for i in range(1+t_start, n+t_start):
-        measurements = np.vstack([measurements, np.vstack([theta[i,:].reshape(3,1), omega[i,:].reshape(3,1)])])
+    if KF:
+        for i in range(1+t_start, n+t_start):
+            measurements = np.hstack([measurements, np.vstack([theta[i,:].reshape(3,1), omega[i,:].reshape(3,1)])])
+    else:
+        for i in range(1+t_start, n+t_start):
+            measurements = np.vstack([measurements, np.vstack([theta[i,:].reshape(3,1), omega[i,:].reshape(3,1)])])
 
     inputs = np.zeros((dof, n))
-    # inputs[0,:] = motor[t_start:n+t_start]
+    inputs[0,:] = motor[t_start:n+t_start]
     inputs[-1,:] = load[t_start:n+t_start]
 
     return measurements, inputs

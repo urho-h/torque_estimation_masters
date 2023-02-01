@@ -36,9 +36,10 @@ def estimation_loop(A, B, C, K, meas, load, initial_state):
     return estimate
 
 if __name__ == "__main__":
-    time, theta, omega, motor, load = handle_data.get_dataset()
-    # meas, load = construct_measurement(theta, omega, motor, load, 40000, 180000)
-    meas, load = handle_data.construct_measurement(theta, omega, motor, load, 3, 40000, 580000)
+    pathname = "../../data/rpm1480.0.pickle"
+    time, theta, omega, motor, load = handle_data.get_dataset(pathname)
+    meas, load = handle_data.construct_measurement(theta, omega, motor, load, 3, 40000, 180000, KF=True)
+    # meas, load = handle_data.construct_measurement(theta, omega, motor, load, 3, 40000, 580000)
 
     propeller_angles, propeller_speed = np.copy(meas[2,:]), np.copy(meas[5,:])
     initial_state = np.copy(meas[:,0])
@@ -55,13 +56,13 @@ if __name__ == "__main__":
     C = np.eye(A.shape[0])
 
     R = np.diag([1e-6, 1e-6, 1e-6, 1e-6, 1e-6, 1e-6]) # measurement covariance R = E{v*v'}
-    Q = 1e-2*np.eye(A.shape[0]) # process covariance
+    Q = 1e-3*np.eye(A.shape[0]) # process covariance
 
     K = kalman_filter(A, B, C, R, Q)
     estimate = estimation_loop(A, B, C, K, meas, load, initial_state)
 
     ## plots speed at node 3
     plt.plot(propeller_speed, label="measured speed")
-    plt.plot(estimate[:,5], label="estimated speed", alpha=0.5)
+    plt.plot(estimate[:,-1], label="estimated speed", alpha=0.5)
     plt.legend()
     plt.show()
