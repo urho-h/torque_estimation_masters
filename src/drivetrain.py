@@ -116,22 +116,30 @@ def simulated_experiment(show_plot=False, pickle_data=False):
     A, B = state_matrices(assembly)
     C = np.eye(B.shape[0])
     D = np.zeros(B.shape)
-    sys = dlti_system(A, B, C, D, dt=0.01)
+
+    t = np.linspace(0, 100, 10001)
+    dt = np.mean(np.diff(t))
 
     amplitudes = [300*0.02, 300*0.01] # amplitudes of ~2% and ~1% of 300 Nm
     omegas = [50, 100] # frequencies of 50 and 100 rad/s
     load = excitation(omegas, amplitudes, offset=300)
 
-    t = np.linspace(0, 100, 10001)
     U = excitation_matrix(t, load, dof=assembly.dofs)
+    plt.plot(t, U[-1,:])
+    plt.show()
+
+    sys = dlti_system(A, B, C, D, dt=dt)
 
     tout, yout, xout = dlsim(sys, U.T, t=t)
 
-    show_plot=True
     if show_plot:
-        plt.plot(tout, yout[:,-1])
+        plt.plot(tout, yout[:,2])
         plt.show()
 
+    if pickle_data:
+        filename = '../data/drivetrain_simulation.pickle'
+        with open(filename, 'wb') as handle:
+            pickle.dump([tout, yout], handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 if __name__ == "__main__":
-    simulated_experiment()
+    simulated_experiment(show_plot=True)
