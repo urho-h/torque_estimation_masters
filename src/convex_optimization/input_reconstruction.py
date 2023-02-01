@@ -10,44 +10,6 @@ sys.path.append('../') # temporarily adds '../' to pythonpath so the drivetrain 
 import drivetrain
 import handle_data
 
-def get_dataset():
-    '''
-    Unpickles a dataset containing the shaft rotational values, speeds and excitation data of a simulated electric drive, with open-loop control and 1480 RPM operating speed reference. The data was used in the SIRM conference paper.
-
-    Returns:
-
-    time : list
-        simulation time in seconds
-    thetas : list
-        measured rotational values at each drivetrain node (rad)
-    omegas : list
-        measured mechanical rotating speed at each drivetrain node (rad/s)
-    '''
-
-    pathname = "../../data/rpm1480.0.pickle"
-    try:
-        with open(pathname, 'rb') as handle:
-            dataset = pickle.load(handle)
-            time, theta, omega, motor, load = dataset[0], dataset[1], dataset[2], dataset[3], dataset[4]
-    except EOFError:
-        print("corrupted dataset")
-
-    theta = np.array(theta)
-    omega = np.array(omega)
-
-    return time, theta, omega
-
-def construct_measurement(time, theta, omega, n, t_start):
-    '''
-    Builds the batch measurement matrix.
-    '''
-    measurements = np.vstack((theta[0+t_start,:].reshape(3,1), omega[0+t_start,:].reshape(3,1)))
-
-    for i in range(1+t_start, n+t_start):
-        measurements = np.vstack((measurements, np.vstack((theta[i,:].reshape(3,1), omega[i,:].reshape(3,1)))))
-
-    return measurements
-
 def O(A, C, n):
     '''
     Create the extended observability matrix used in the data equation.
