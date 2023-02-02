@@ -1,11 +1,18 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.linalg as LA
-from scipy.signal import dlti, dlsim
+from scipy.signal import dlti, dlsim, lti, lsim
 import pickle
 import opentorsion as ot
 
-def excitation(omegas, amplitudes, offset=0, phase=0):
+def step_excitation(step_start, step_end, step_value, initial_value=0):
+    '''
+    A step input function.
+    '''
+
+    return lambda t: initial_value + (t >= step_start)*(t < step_end)*step_value
+
+def sinusoidal_excitation(omegas, amplitudes, offset=0, phase=0):
     """
     Sinusoidal excitation function.
     A sum of sine waves.
@@ -108,6 +115,13 @@ def dlti_system(A, B, C, D, dt=1):
 
     return dlti(A, B, C, D, dt=dt)
 
+def lti_system(A, B, C, D):
+    '''
+    Returns an instance of a continuous LTI-system using the state-space matrices.
+    '''
+
+    return lti(A, B, C, D)
+
 def simulated_experiment(show_plot=False, pickle_data=False):
     '''
     Simulation of a 3-DOF mechanical drivetrain excited with a sinusoidal excitation.
@@ -118,22 +132,18 @@ def simulated_experiment(show_plot=False, pickle_data=False):
     D = np.zeros(B.shape)
 
     t = np.linspace(0, 100, 10001)
-    dt = np.mean(np.diff(t))
 
-    amplitudes = [300*0.02, 300*0.01] # amplitudes of ~2% and ~1% of 300 Nm
-    omegas = [50, 100] # frequencies of 50 and 100 rad/s
-    load = excitation(omegas, amplitudes, offset=300)
+    load = step_excitation(20, 21, 100)
 
     U = excitation_matrix(t, load, dof=assembly.dofs)
-    plt.plot(t, U[-1,:])
-    plt.show()
 
-    sys = dlti_system(A, B, C, D, dt=dt)
-
-    tout, yout, xout = dlsim(sys, U.T, t=t)
+    ## continuous time simulation ##
+    sys = lti_system(A, B, C, D)
+    tout, yout, xout = lsim(sys, U.T, t)
 
     if show_plot:
-        plt.plot(tout, yout[:,2])
+        plt.plot(tout, yout[:,-1])
+        plt.ylim()
         plt.show()
 
     if pickle_data:
