@@ -1,7 +1,11 @@
+'''
+Script for handling data generated in the simulations used in the SIRM conference paper.
+'''
+
 import numpy as np
 import pickle
 
-def get_dataset(pathname):
+def get_sirm_dataset(pathname):
     '''
     Unpickles a dataset containing the shaft torque and
     excitation data of a simulated electric drive, with
@@ -65,7 +69,7 @@ def construct_measurement(theta, omega, motor, load, dof, n, t_start, KF=False):
 
     inputs = np.zeros((dof, n))
     inputs[0,:] = motor[t_start:n+t_start]
-    inputs[-1,:] = load[t_start:n+t_start]
+    inputs[-1,:] = -load[t_start:n+t_start]
 
     return measurements, inputs
 

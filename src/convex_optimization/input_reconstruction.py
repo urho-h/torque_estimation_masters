@@ -131,7 +131,7 @@ def sirm_experiment():
     A test with the mechanical system used in the SIRM conference paper.
     '''
     pathname = "../../data/rpm1480.0.pickle"
-    time, theta, omega, motor, load = handle_data.get_dataset(pathname)
+    time, theta, omega, motor, load = handle_data.get_sirm_dataset(pathname)
     n = 100 # number of measurements
     t_start = 600000 # timestep to start at
     dof = 3 # the example system DOF = 3
