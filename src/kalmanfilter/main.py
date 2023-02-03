@@ -70,7 +70,7 @@ def conventional_kalman_filter(A, B, C, Q, R, Y, load, m0, P0):
 
     return x, P
 
-if __name__ == "__main__":
+def sirm_experiment():
     pathname = "../../data/rpm1480.0.pickle"
     time, theta, omega, motor, load = handle_data.get_sirm_dataset(pathname)
     meas, load = handle_data.construct_measurement(theta, omega, motor, load, 3, 40000, 180000, KF=True)
@@ -92,14 +92,52 @@ if __name__ == "__main__":
     R = np.diag([1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3]) # measurement covariance
     Q = 1e-2*np.eye(A.shape[0]) # process covariance
 
-    ####### Asyptotic Kalamn filter #######
+    ####### Asyptotic Kalman filter #######
     # K = kalman_gain(A, B, C, R, Q)
     # estimate = estimation_loop(A, B, C, K, meas, load, initial_state)
 
-    ####### Conventional Kalamn filter #######
+    ####### Conventional Kalman filter #######
     m0 = 0.7*initial_state # initial state guess
     P0 = 1e-2*np.eye(A.shape[0]) # randomly chosen estimate covariance
     x_kalman, cov_kalman = conventional_kalman_filter(A, B, C, Q, R, meas, load, m0, P0)
+
+    ## plots speed at node 3
+    plt.plot(propeller_speed, label="measured speed")
+    # plt.plot(estimate[:,-1], label="estimated speed", alpha=0.5)
+    plt.plot(x_kalman[-1,:], label="estimated speed", linestyle='--')
+    plt.legend()
+    plt.show()
+
+if __name__ == "__main__":
+    pathname = '../../data/drivetrain_simulation.pickle'
+    with open(pathname, 'rb') as handle:
+        dataset = pickle.load(handle)
+        t, U, tout, yout = dataset[0], dataset[1], dataset[2], dataset[3]
+
+    propeller_angles, propeller_speed = np.copy(yout[:,2]), np.copy(yout[:,5])
+    initial_state = np.copy(yout[0,:])
+
+    # save only measurements from node 1
+    yout[:,1] *= 0
+    yout[:,2] *= 0
+    yout[:,4] *= 0
+    yout[:,5] *= 0
+
+    assembly = drivetrain.drivetrain_3dof()
+    A, B = drivetrain.state_matrices(assembly)
+    C = np.eye(A.shape[0])
+
+    R = 1e-3*np.eye(A.shape[0]) # measurement covariance
+    Q = 1e-2*np.eye(A.shape[0]) # process covariance
+
+    ## add gaussian white noise to measurement ##
+    r = np.random.multivariate_normal(np.zeros(R.shape[0]), R, yout.shape[0])
+    noisy_meas = (yout + r).T
+
+    ####### Conventional Kalman filter #######
+    m0 = 0*initial_state # initial state guess
+    P0 = 1e-2*np.eye(A.shape[0]) # randomly chosen estimate covariance
+    x_kalman, cov_kalman = conventional_kalman_filter(A, B, C, Q, R, noisy_meas, U, m0, P0)
 
     ## plots speed at node 3
     plt.plot(propeller_speed, label="measured speed")

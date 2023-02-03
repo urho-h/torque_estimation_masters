@@ -122,6 +122,29 @@ def lti_system(A, B, C, D):
 
     return lti(A, B, C, D)
 
+def noisy_simulation(time, A, B, C, U):
+    '''
+    A simulation with process and measurement noise.
+
+    Returns the system output.
+    '''
+    dt = np.mean(np.diff(time))
+    ## add gaussian white noise to measurement and process ##
+    R = 1e-3*np.eye(A.shape[0]) # measurement covariance
+    Q = 1e-2*np.eye(A.shape[0]) # process covariance
+    r = np.random.multivariate_normal(np.zeros(R.shape[0]), R, time.shape[0]).T
+    q = np.random.multivariate_normal(np.zeros(Q.shape[0]), Q, time.shape[0]).T
+
+    x = np.zeros((A.shape[0], 1))
+    y = np.zeros((A.shape[0], 1))
+
+    for i in range(1, time.shape[0]):
+        x_new = A @ x + (B @ U[:,i]).reshape(B.shape[0], 1) + q[:,i].reshape(q.shape[0], 1)
+        y = np.hstack((y, C @ x_new + r[:,i].reshape(r.shape[0], 1)))
+        x = x_new
+
+    return time, y
+
 def simulated_experiment(show_plot=False, pickle_data=False):
     '''
     Simulation of a 3-DOF mechanical drivetrain excited with a sinusoidal excitation.
@@ -131,7 +154,7 @@ def simulated_experiment(show_plot=False, pickle_data=False):
     C = np.eye(B.shape[0])
     D = np.zeros(B.shape)
 
-    t = np.linspace(0, 100, 10001)
+    t = np.linspace(0, 100, 101)
 
     load = step_excitation(20, 21, 100)
 
@@ -139,17 +162,18 @@ def simulated_experiment(show_plot=False, pickle_data=False):
 
     ## continuous time simulation ##
     sys = lti_system(A, B, C, D)
-    tout, yout, xout = lsim(sys, U.T, t)
+    # tout, yout, xout = lsim(sys, U.T, t)
+    tout, yout = noisy_simulation(t, A, B, C, U)
 
     if show_plot:
-        plt.plot(tout, yout[:,-1])
-        plt.ylim()
+        plt.plot(tout, yout[-1,:])
+        plt.ylim(0,300)
         plt.show()
 
     if pickle_data:
         filename = '../data/drivetrain_simulation.pickle'
         with open(filename, 'wb') as handle:
-            pickle.dump([tout, yout], handle, protocol=pickle.HIGHEST_PROTOCOL)
+            pickle.dump([t, U, tout, yout], handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 if __name__ == "__main__":
-    simulated_experiment(show_plot=True)
+    simulated_experiment(show_plot=True, pickle_data=False)
