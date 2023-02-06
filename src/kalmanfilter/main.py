@@ -11,22 +11,22 @@ sys.path.append('../') # temporarily adds '../' to pythonpath so the drivetrain 
 import drivetrain
 import handle_data
 
-def kalman_filter(A, B, C, R, Q):
+def kalman_filter(A, B, C, R, Q, dt=1):
     '''
     Asymptotic Kalman filter as scipy dlti instance.
-    The covariance matrix is computed by solving a discrete Ricatti equation.
+    The estimate covariance matrix is computed by solving a discrete Ricatti equation.
     '''
     P = LA.solve_discrete_are(A, C, Q, R) # ricatti_equation
     K = P @ C.T @ LA.inv(R + C @ P @ C.T) # kalman gain
 
-    KF = dlti((np.eye(P.shape[0]) - K @ C) @ A, K, C, np.zeros(C.shape), dt=1)
+    KF = dlti((np.eye(P.shape[0]) - K @ C) @ A, K, C, np.zeros(C.shape), dt=dt)
 
     return KF
 
 def kalman_gain(A, B, C, R, Q):
     '''
     Asymptotic Kalman filter.
-    The covariance matrix is computed by solving a discrete Ricatti equation.
+    The estimate covariance matrix is computed by solving a discrete Ricatti equation.
     '''
     P = LA.solve_discrete_are(A, C, Q, R) # ricatti_equation
     K = A @ P @ C.T @ LA.inv(R + C @ P @ C.T) # kalman gain
@@ -75,22 +75,28 @@ if __name__ == "__main__":
     Currently works only for a 3-DOF system.
     '''
 
-    pathname = '../../data/drivetrain_simulation.pickle'
+    # load dataset
+    pathname = '../../data/drivetrain_simulation.pickle' # simulated measurements
     with open(pathname, 'rb') as handle:
         dataset = pickle.load(handle)
-        t, U, tout, yout = dataset[0], dataset[1], dataset[2], dataset[3]
+        t, U, tout, yout = dataset[0], dataset[1], dataset[2], dataset[3] # tout is measurement timesteps
+        # yout contains angle and speed measurements
+        # first three rows are rotational values at each node, last three rotational speeds
+        # each column represents a timestep
 
+    # get state-space matrices created using openTorsion
     assembly = drivetrain.drivetrain_3dof()
     A, B = drivetrain.state_matrices(assembly)
     C = np.eye(A.shape[0])
 
-    R = 1e-3*np.eye(C.shape[0]) # measurement covariance, R shape (n_sensors, n_sensors)
-    Q = 1e-1*np.diag(np.array([0, 0, 0, 1, 1, 1])) # process (speed) covariance, Q shape (n_states, n_states)
+    R = 1e-3*np.eye(C.shape[0]) # measurement covariance, shape (n_sensors, n_sensors)
+    Q = 1e-1*np.diag(np.array([0, 0, 0, 1, 1, 1])) # process (speed) covariance, shape (n_states, n_states)
 
     ### add gaussian white noise to the measurement (measurement and process noise) ###
     r = np.random.multivariate_normal(np.zeros(R.shape[0]), R, tout.shape[0])
     q = np.random.multivariate_normal(np.zeros(Q.shape[0]), Q, tout.shape[0])
-    yout_noise = (yout + r + q).T
+    yout_noise = (yout + r + q).T # shape (n_timesteps, n_states)
+    meas = np.hstack([0*yout_noise[:,0], 0*yout_noise[:,1], 0*yout_noise[:,2], yout_noise[:,3], 0*yout_noise[:,4], 0*yout_noise[:,5]]) # manually set measurements at chosen nodes to zero
 
     ####### Conventional Kalman filter #######
     m0 = 0.9*np.copy(yout[0,:]) # initial state guess
@@ -98,9 +104,9 @@ if __name__ == "__main__":
     x_kalman, cov_kalman = conventional_kalman_filter(A, B, C, Q, R, yout_noise, U, m0, P0)
 
     ## plots speed at node 3
-    plt.plot(yout[:,-1], label="measured speed")
-    plt.plot(yout_noise[-1,:], label="measured speed with noise", alpha=0.5)
-    plt.plot(x_kalman[-1,:], label="estimated speed", linestyle='--')
+    plt.plot(x_kalman[-1,:], label="estimated speed", linestyle='--', color='green')
+    plt.plot(yout_noise[-1,:], label="measured speed with noise", alpha=0.8, color='b')
+    plt.plot(yout[:,-1], label="measured speed (no noise)", color='r')
     plt.ylim(-5, 60)
     plt.legend()
     plt.show()
