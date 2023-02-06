@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.linalg as LA
-from scipy.signal import dlti, dlsim, lti, lsim
+from scipy.signal import dlti, dlsim, dimpulse, lti, lsim, impulse
 import pickle
 import opentorsion as ot
 
@@ -80,6 +80,50 @@ def drivetrain_3dof():
 
     return assembly
 
+def testbench():
+    '''
+    Kongsberg testbench openTorsion model.
+    '''
+    shafts = []
+    disks = []
+    gears = []
+
+    disks.append(Disk(0, I=6.5e-4))
+    shafts.append(Shaft(0, 1, 0, 0, k=1.9039e5 , I=1.4420e-4, c=8.0804)) # driving motor, coupling
+    shafts.append(Shaft(1, 2, 0, 0, k=6.9487e3, I=3.7880e-6, c=0.2949)) # shaft
+    shafts.append(Shaft(2, 3, 0, 0, k=90, I=3e-6, c=0.2387)) # elastomer coupling hub
+    shafts.append(Shaft(3, 4, 0, 0, k=90, I=2e-6, c=0.2387)) # elastomer coupling middle piece
+    shafts.append(Shaft(4, 5, 0, 0, k=90, I=0, c=0.2387)) # elastomer coupling hubs & shaft
+    disks.append(Disk(5, I=7.8091e-3))
+    shafts.append(Shaft(5, 6, 0, 0, k=90, I=2e-6, c=0.2387))# elastomer coupling middle piece
+    shafts.append(Shaft(6, 7, 0, 0, k=90, I=0, c=0.0013)) # elastomer coupling hub & shaft
+    shafts.append(Shaft(7, 8, 0.342e3, 0.008e3, G=80e9, rho=7800)) # new shaft (shaft & coupling)
+    # shafts.append(Shaft(7, 8, 0, 0, k=4.19e4, I=(5.0171e-5+3.1708e-6), c=1.7783)) # old shaft (shaft & coupling)
+    shafts.append(Shaft(8, 9, 0, 0, k=5.4e3, I=6.5e-6, c=0.2292)) # torque transducer
+    shafts.append(Shaft(9, 10, 0, 0, k=4.19e4, I=5.65e-5, c=1.7783)) # torque transducer & coupling
+    shafts.append(Shaft(10, 11, 0, 0, k=1.2192e3, I=4.2685e-6, c=0.5175)) # shaft
+    gear1 = Gear(11, I=3.2467e-4, R=1)
+    gears.append(gear1) # shaft & gear
+    gears.append(Gear(12, I=0, R=3, parent=gear1))
+    shafts.append(Shaft(12, 13, 0, 0, k=3.1e4, I=1.2e-4, c=1.3157)) # coupling
+    shafts.append(Shaft(13, 14, 0, 0, k=1.1429e3, I=1.1516e-5, c=0.0485)) # shaft
+    shafts.append(Shaft(14, 15, 0, 0, k=3.1e4, I=1.3152e-4, c=1.3157)) # shaft & coupling
+    shafts.append(Shaft(15, 16, 0, 0, k=1.2192e4, I=4.2685e-6, c=0.5175)) # shaft
+    gear2 = Gear(16, I=2.6927e-4, R=1)
+    gears.append(gear2) # shaft & gear
+    gears.append(Gear(17, I=0, R=4, parent=gear2))
+    shafts.append(Shaft(17, 18, 0, 0, k=1.38e5, I=1.8e-4, c=5.8569)) # coupling
+    shafts.append(Shaft(18, 19, 0, 0, k=2e4, I=2e-5, c=0.8488)) # torque transducer
+    shafts.append(Shaft(19, 20, 0, 0, k=1.38e5, I=2e-4, c=5.8569)) # torque trandsucer & coupling
+    shafts.append(Shaft(20, 21, 0, 0, k=1.2192e4, I=4.2685e-6, c=0.5175)) # shaft
+    # disks.append(Disk(21, I=7.8e-3)) # shaft, mass, planetary gear & load generator
+    disks.append(Disk(21, I=4.9535e-2)) # shaft, mass, planetary gear & load generator
+
+    assembly = Assembly(shafts, disk_elements=disks, gear_elements=gears)
+    _, f, _ = assembly.modal_analysis()
+    # print(f.round(2))
+
+    return assembly
 def state_matrices(assembly):
     '''
     Create state-space matrices A and B of an openTorsion assembly.
@@ -154,7 +198,8 @@ def simulated_experiment(show_plot=False, pickle_data=False):
     C = np.eye(B.shape[0])
     D = np.zeros(B.shape)
 
-    t = np.linspace(0, 100, 101)
+    t = np.arange(0, 100.01, 0.01)
+    dt = np.mean(np.diff(t))
 
     load = step_excitation(20, 21, 100)
 
@@ -162,12 +207,18 @@ def simulated_experiment(show_plot=False, pickle_data=False):
 
     ## continuous time simulation ##
     sys = lti_system(A, B, C, D)
-    # tout, yout, xout = lsim(sys, U.T, t)
-    tout, yout = noisy_simulation(t, A, B, C, U)
+    tout, yout, xout = lsim(sys, U.T, t)
+
+    ## discrete time simulation ##
+    # dsys = dlti_system(A, B, C, D, dt)
+    # dtout, dyout, dxout = dlsim(dsys, U.T, t, dt)
+
+    ## discrete time simulation with added noise ##
+    # tout_noise, yout_noise = noisy_simulation(t, A, B, C, U)
 
     if show_plot:
-        plt.plot(tout, yout[-1,:])
-        plt.ylim(0,300)
+        plt.plot(tout, yout[:,-1], label='continuous')
+        plt.legend()
         plt.show()
 
     if pickle_data:

@@ -70,78 +70,46 @@ def conventional_kalman_filter(A, B, C, Q, R, Y, load, m0, P0):
 
     return x, P
 
-def sirm_experiment():
-    pathname = "../../data/rpm1480.0.pickle"
-    time, theta, omega, motor, load = handle_data.get_sirm_dataset(pathname)
-    meas, load = handle_data.construct_measurement(theta, omega, motor, load, 3, 40000, 180000, KF=True)
-    # meas, load = handle_data.construct_measurement(theta, omega, motor, load, 3, 40000, 580000, KF=True)
-
-    propeller_angles, propeller_speed = np.copy(meas[2,:]), np.copy(meas[5,:])
-    initial_state = np.copy(meas[:,0])
-
-    # save only measurements from node 1
-    meas[1,:] *= 0
-    meas[2,:] *= 0
-    meas[4,:] *= 0
-    meas[5,:] *= 0
-
-    assembly = drivetrain.drivetrain_3dof()
-    A, B = drivetrain.state_matrices(assembly)
-    C = np.eye(A.shape[0])
-
-    R = np.diag([1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3]) # measurement covariance
-    Q = 1e-2*np.eye(A.shape[0]) # process covariance
-
-    ####### Asyptotic Kalman filter #######
-    # K = kalman_gain(A, B, C, R, Q)
-    # estimate = estimation_loop(A, B, C, K, meas, load, initial_state)
-
-    ####### Conventional Kalman filter #######
-    m0 = 0.7*initial_state # initial state guess
-    P0 = 1e-2*np.eye(A.shape[0]) # randomly chosen estimate covariance
-    x_kalman, cov_kalman = conventional_kalman_filter(A, B, C, Q, R, meas, load, m0, P0)
-
-    ## plots speed at node 3
-    plt.plot(propeller_speed, label="measured speed")
-    # plt.plot(estimate[:,-1], label="estimated speed", alpha=0.5)
-    plt.plot(x_kalman[-1,:], label="estimated speed", linestyle='--')
-    plt.legend()
-    plt.show()
-
 if __name__ == "__main__":
+    '''
+    Currently works only for a 3-DOF system.
+    '''
+
     pathname = '../../data/drivetrain_simulation.pickle'
     with open(pathname, 'rb') as handle:
         dataset = pickle.load(handle)
         t, U, tout, yout = dataset[0], dataset[1], dataset[2], dataset[3]
 
-    propeller_angles, propeller_speed = np.copy(yout[:,2]), np.copy(yout[:,5])
-    initial_state = np.copy(yout[0,:])
-
-    # save only measurements from node 1
-    yout[:,1] *= 0
-    yout[:,2] *= 0
-    yout[:,4] *= 0
-    yout[:,5] *= 0
-
     assembly = drivetrain.drivetrain_3dof()
     A, B = drivetrain.state_matrices(assembly)
     C = np.eye(A.shape[0])
 
-    R = 1e-3*np.eye(A.shape[0]) # measurement covariance
-    Q = 1e-2*np.eye(A.shape[0]) # process covariance
+    R = 1e-3*np.eye(C.shape[0]) # measurement covariance, R shape (n_sensors, n_sensors)
+    Q = 1e-1*np.diag(np.array([0, 0, 0, 1, 1, 1])) # process (speed) covariance, Q shape (n_states, n_states)
 
-    ## add gaussian white noise to measurement ##
-    r = np.random.multivariate_normal(np.zeros(R.shape[0]), R, yout.shape[0])
-    noisy_meas = (yout + r).T
+    ### add gaussian white noise to the measurement (measurement and process noise) ###
+    r = np.random.multivariate_normal(np.zeros(R.shape[0]), R, tout.shape[0])
+    q = np.random.multivariate_normal(np.zeros(Q.shape[0]), Q, tout.shape[0])
+    yout_noise = (yout + r + q).T
 
     ####### Conventional Kalman filter #######
-    m0 = 0*initial_state # initial state guess
+    m0 = 0.9*np.copy(yout[0,:]) # initial state guess
     P0 = 1e-2*np.eye(A.shape[0]) # randomly chosen estimate covariance
-    x_kalman, cov_kalman = conventional_kalman_filter(A, B, C, Q, R, noisy_meas, U, m0, P0)
+    x_kalman, cov_kalman = conventional_kalman_filter(A, B, C, Q, R, yout_noise, U, m0, P0)
 
     ## plots speed at node 3
-    plt.plot(propeller_speed, label="measured speed")
-    # plt.plot(estimate[:,-1], label="estimated speed", alpha=0.5)
+    plt.plot(yout[:,-1], label="measured speed")
+    plt.plot(yout_noise[-1,:], label="measured speed with noise", alpha=0.5)
     plt.plot(x_kalman[-1,:], label="estimated speed", linestyle='--')
+    plt.ylim(-5, 60)
     plt.legend()
     plt.show()
+
+# def sirm_experiment():
+#     pathname = "../../data/rpm1480.0.pickle"
+#     time, theta, omega, motor, load = handle_data.get_sirm_dataset(pathname)
+#     meas, load = handle_data.construct_measurement(theta, omega, motor, load, 3, 40000, 180000, KF=True)
+#     # meas, load = handle_data.construct_measurement(theta, omega, motor, load, 3, 40000, 580000, KF=True)
+
+#     propeller_angles, propeller_speed = np.copy(meas[2,:]), np.copy(meas[5,:])
+#     initial_state = np.copy(meas[:,0])
