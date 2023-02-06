@@ -209,13 +209,6 @@ def simulated_experiment(show_plot=False, pickle_data=False):
     sys = lti_system(A, B, C, D)
     tout, yout, xout = lsim(sys, U.T, t)
 
-    ## discrete time simulation ##
-    # dsys = dlti_system(A, B, C, D, dt)
-    # dtout, dyout, dxout = dlsim(dsys, U.T, t, dt)
-
-    ## discrete time simulation with added noise ##
-    # tout_noise, yout_noise = noisy_simulation(t, A, B, C, U)
-
     if show_plot:
         plt.plot(tout, yout[:,-1], label='continuous')
         plt.legend()
