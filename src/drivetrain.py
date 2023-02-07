@@ -124,6 +124,7 @@ def testbench():
     # print(f.round(2))
 
     return assembly
+
 def state_matrices(assembly):
     '''
     Create state-space matrices A and B of an openTorsion assembly.
@@ -211,6 +212,7 @@ def simulated_experiment(show_plot=False, pickle_data=False):
 
     if show_plot:
         plt.plot(tout, yout[:,-1], label='continuous')
+        plt.ylim(0, 5000)
         plt.legend()
         plt.show()
 
