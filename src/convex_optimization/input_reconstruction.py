@@ -96,7 +96,7 @@ def L(input_shape):
 
     return L
 
-def convex_optimization_problem(meas, O, gamma, lam=100, L=None):
+def convex_optimization_problem(meas, O, gamma, L, lam=1):
     '''
     Convex optimization methods using the cvxpy library.
     '''

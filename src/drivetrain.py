@@ -54,20 +54,24 @@ def excitation_matrix(t, load, dof):
     return U
 
 def drivetrain_3dof():
-    '''
+    """
     Mechanical drivetrain as an openTorsion assembly instance.
 
     Returns:
-
-    assembly : opentorsion assembly instance
-        A 3-DOF mechanical drivetrain modelled as lumped masses and flexible shafts
-        (lumped mass - shaft - lumped mass - shaft - lumped mass).
-    '''
-    J1 = 0.8 # disk 1 inertia
-    J2 = 0.5 # disk 2 inertia
-    J3 = 0.7 # disk 3 inertia
-    k1 = 1.5e4 # shaft 1 stiffness
-    k2 = 1e4 # shaft 2 stiffness
+        assembly: opentorsion assembly instance
+            A 3-DOF mechanical drivetrain modeled as lumped masses and flexible shafts
+            (lumped mass - shaft - lumped mass - shaft - lumped mass).
+    """
+    # Disk 1 inertia
+    J1 = 0.8
+    # Disk 2 inertia
+    J2 = 0.5
+    # Disk 3 inertia
+    J3 = 0.7
+    # Shaft 1 stiffness
+    k1 = 1.5e4
+    # Shaft 2 stiffness
+    k2 = 1e4
 
     disks, shafts = [], []
     shafts.append(ot.Shaft(0, 1, None, None, k=k1, I=0))
@@ -126,23 +130,21 @@ def testbench():
     return assembly
 
 def state_matrices(assembly):
-    '''
+    """
     Create state-space matrices A and B of an openTorsion assembly.
 
     Parameters:
-
-    assembly : openTorsion assembly instance
-        Mechanical drivetrain model
+        assembly : openTorsion assembly instance
+            Mechanical drivetrain model
 
     Returns:
-
-    A : numpy.ndarray
-        The state matrix
-    B : numpy.ndarray
-        The input matrix
-    '''
-    M, K = assembly.M(), assembly.K() # mass and sitffness matrices
-    C = assembly.C_modal(M, K, xi=0.02) # modal damping matrix, modal damping coefficient 0.02 used
+        A : numpy.ndarray
+            The state matrix
+        B : numpy.ndarray
+            The input matrix
+    """
+    M, K = assembly.M(), assembly.K()  # Mass and stiffness matrices
+    C = assembly.C_modal(M, K, xi=0.02)  # Modal damping matrix, modal damping coefficient 0.02 used
     Z = np.zeros(M.shape)
     I = np.eye(M.shape[0])
     M_inv = LA.inv(M)

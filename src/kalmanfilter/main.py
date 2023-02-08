@@ -11,51 +11,107 @@ sys.path.append('../') # temporarily adds '../' to pythonpath so the drivetrain 
 
 import drivetrain
 import handle_data
-
 class PredictionDerivative:
-    '''
+    """
     This class is used in the calculation of predicted state in the conventional Kalman filter algorithm.
-    '''
+    """
+
     def __init__(self, A, B, u0):
+        """
+        Initialize the state matrices and the input matrix.
+
+        Parameters:
+        A : numpy.ndarray
+            The state matrix
+        B : numpy.ndarray
+            The input matrix
+        u0 : float
+            The initial load on the drivetrain
+        """
         self.A = A
         self.B = B
         self.u = u0
 
     def update_load(self, u):
+        """
+        Update the load on the drivetrain.
+
+        Parameters:
+        u : float
+            The updated load on the drivetrain
+        """
         self.u = u
 
     def f(self, t, x):
-        '''State derivative function used by scipy.integrate.solve_ivp (see. conventional_kalman_filter function)'''
+        """
+        State derivative function used by `scipy.integrate.solve_ivp`
+        (see `conventional_kalman_filter` function).
 
+        Parameters:
+        t : float
+            The time step
+        x : numpy.ndarray
+            The state vector
+
+        Returns:
+        numpy.ndarray
+            The derivative of the state vector
+        """
         return self.A @ x + self.B @ self.u
 
 def conventional_kalman_filter(A, B, C, Q, R, time, Y, load, m0, P0):
-    '''
-    Conventional Kalman filter.
-    '''
+    """
+    A conventional Kalman filter.
+
+    Parameters:
+    A : numpy.ndarray
+        The state matrix
+    B : numpy.ndarray
+        The input matrix
+    C : numpy.ndarray
+        The observation matrix
+    Q : numpy.ndarray
+        The process covariance matrix
+    R : numpy.ndarray
+        The measurement covariance matrix
+    time : numpy.ndarray
+        Measurement timesteps
+    Y : numpy.ndarray
+        Measurements
+    load : numpy.ndarray
+        Excitation data
+    m0 : numpy.ndarray
+        Initial state guess
+    P0 : numpy.ndarray
+        Initial estimate covariance guess
+
+    Returns:
+    x : numpy.ndarray
+        The Kalman filter estimated states
+    """
     T = Y.shape[1]
-    nx = m0.shape[0] # dimension of x
+    nx = m0.shape[0]  # dimension of x
     x = np.zeros((nx, T))
-    x[:,0] = m0
+    x[:, 0] = m0
     P = P0
     I = np.eye(P0.shape[0])
-    predd = PredictionDerivative(A, B, load[:,0])
+    predd = PredictionDerivative(A, B, load[:, 0])
     for n in range(T-1):
         # Prediction
-        dt = time[n+1]-time[n]
-        x_hat = x[:,n]
-        u_hat = load[:,n]
+        dt = time[n + 1] - time[n]
+        x_hat = x[:, n]
+        u_hat = load[:, n]
         predd.update_load(u_hat)
-        sol = solve_ivp(predd.f, (time[n], time[n]+dt), x_hat)
-        x_ = sol.y[:,-1]
+        sol = solve_ivp(predd.f, (time[n], time[n] + dt), x_hat)
+        x_ = sol.y[:, -1]
         P_ = A @ P @ A.T + Q
         # Update
         S = C @ P_ @ C.T + R
         K = P_ @ C.T @ LA.inv(S)
         P = (I - K @ C) @ P_
         # P = (I - K @ C) @ P_ @ (I - K @ C).T + K @ R @ K.T
-        y = Y[:,n]
-        x[:,n+1] = x_ + K @ (y - C @ x_)
+        y = Y[:, n]
+        x[:, n+1] = x_ + K @ (y - C @ x_)
 
     return x
 
@@ -99,10 +155,10 @@ if __name__ == "__main__":
     yout_noise = (yout + r + q).T # shape (n_states, n_timesteps)
     yout_lowpass = low_pass_filter(yout_noise, 20, 1/np.mean(np.diff(t))) # low-pass filter the measurement
 
-    meas = np.vstack([yout_lowpass[0,:], yout_lowpass[1,:], yout_lowpass[3,:], yout_lowpass[4,:]]) # use speed measurements at node 1 and 3
+    meas = np.vstack([yout_lowpass[3,:], yout_lowpass[4,:]]) # use speed measurements at node 1 and 2
 
-    # C and R matrices redefined
-    C = np.array([[1, 0, 0, 0, 0, 0], [0, 1, 0, 0, 0, 0], [0, 0, 0, 1, 0, 0], [0, 0, 0, 0, 1, 0]])
+    # C, Q and R matrices redefined
+    C = np.array([[0, 0, 0, 1, 0, 0], [0, 0, 0, 0, 1, 0]])
     R = 1e-4*np.eye(C.shape[0])
     Q = 1e-2*np.diag(np.array([0, 0, 0, 1, 1, 1])) # process (speed) covariance, shape (n_states, n_states)
 
