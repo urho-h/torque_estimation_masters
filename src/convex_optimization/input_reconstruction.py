@@ -102,8 +102,6 @@ def convex_optimization_problem(meas, O, gamma, L, lam=1):
     '''
     d = cp.Variable((gamma.shape[1], 1), complex=False)
     x = np.array(meas[:6,0]).reshape(6, 1) # first measurement used as the initial state
-    print(d.shape)
-    print(gamma.shape)
     objective = cp.Minimize(cp.sum_squares(meas - O @ x - gamma @ d) + lam * cp.pnorm(L @ d, 1))
     prob = cp.Problem(objective)
     prob.solve(solver=cp.CVXOPT)

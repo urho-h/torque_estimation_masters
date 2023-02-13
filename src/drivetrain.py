@@ -84,6 +84,28 @@ def drivetrain_3dof():
 
     return assembly
 
+def manually_built_3dof():
+    """
+    Mechanical drivetrain with manually constructed state matrices.
+
+    Returns:
+        assembly: opentorsion assembly instance
+            A 3-DOF mechanical drivetrain modeled as lumped masses and flexible shafts
+            (lumped mass - shaft - lumped mass - shaft - lumped mass).
+    """
+    # Disk 1 inertia
+    J1 = 0.8
+    # Disk 2 inertia
+    J2 = 0.5
+    # Disk 3 inertia
+    J3 = 0.7
+    # Shaft 1 stiffness
+    k1 = 1.5e4
+    # Shaft 2 stiffness
+    k2 = 1e4
+
+    return M, C, K
+
 def testbench():
     '''
     Kongsberg testbench openTorsion model.
