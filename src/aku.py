@@ -5,13 +5,6 @@ from scipy.signal import dlti, dlsim, dimpulse, lti, lsim, impulse
 import pickle
 import opentorsion as ot
 
-def step_excitation(step_start, step_end, step_value, initial_value=0):
-    '''
-    A step input function.
-    '''
-
-    return lambda t: initial_value + (t >= step_start)*(t < step_end)*step_value
-
 def sinusoidal_excitation(omegas, amplitudes, offset=0, phase=0):
     """
     Sinusoidal excitation function.
@@ -53,58 +46,77 @@ def excitation_matrix(t, load, dof):
 
     return U
 
-def drivetrain_3dof():
-    """
-    Mechanical drivetrain as an openTorsion assembly instance.
+def testbench_measured():
+    shafts, disks, gears = [], [], []
 
-    Returns:
-        assembly: opentorsion assembly instance
-            A 3-DOF mechanical drivetrain modeled as lumped masses and flexible shafts
-            (lumped mass - shaft - lumped mass - shaft - lumped mass).
-    """
-    # Disk 1 inertia
-    J1 = 0.8
-    # Disk 2 inertia
-    J2 = 0.5
-    # Disk 3 inertia
-    J3 = 0.7
-    # Shaft 1 stiffness
-    k1 = 1.5e4
-    # Shaft 2 stiffness
-    k2 = 1e4
+    shafts = []
+    disks = []
+    gears = []
 
-    disks, shafts = [], []
-    shafts.append(ot.Shaft(0, 1, None, None, k=k1, I=0))
-    shafts.append(ot.Shaft(1, 2, None, None, k=k2, I=0))
-    disks.append(ot.Disk(0, I=J1))
-    disks.append(ot.Disk(1, I=J2))
-    disks.append(ot.Disk(2, I=J3))
-    assembly = ot.Assembly(shafts, disk_elements=disks)
+    '''Driving motor, motor shaft, aluminium copuling, steel shaft'''
+    disks.append(Disk(0, I=6.5e-4))
+    shafts.append(Shaft(0, 1, 15, 24))
+    shafts.append(Shaft(1, 2, 79.45, 66, idl=20, G=27e9, E=70e9, rho=2710))
+    shafts.append(Shaft(2, 3, 6, 16))
+
+    '''Elastomer coupling'''
+    shafts.append(Shaft(3, 4, (51.75/3), 32.2, idl=16, G=27e9, E=70e9, rho=2710)) # elastomer coupling hub
+    shafts.append(Shaft(4, 5, 0, 0, k=90, I=0)) # elastomer coupling soft part
+    shafts.append(Shaft(5, 6, (51.75/3), 32.2, idl=16, G=27e9, E=70e9, rho=2710)) # elastomer coupling middle piece
+    shafts.append(Shaft(6, 7, 0, 0, k=90, I=0)) # elastomer coupling soft part
+    shafts.append(Shaft(7, 8, (51.75/3), 32.2, idl=16, G=27e9, E=70e9, rho=2710)) # elastomer coupling hub
+
+    '''Shaft, mass, shaft'''
+    shafts.append(Shaft(8, 9 , 39, 16))
+    disks.append(Disk(9, I=7.7e-3))
+    shafts.append(Shaft(9, 10, 39, 16))
+
+    '''Elastomer coupling'''
+    shafts.append(Shaft(11, 12, (51.75/3), 32.2, idl=16, G=27e9, E=70e9, rho=2710)) # elastomer coupling hub
+    shafts.append(Shaft(12, 13, 0, 0, k=90, I=0)) # elastomer coupling soft part
+    shafts.append(Shaft(13, 14, (51.75/3), 32.2, idl=16, G=27e9, E=70e9, rho=2710)) # elastomer coupling middle piece
+    shafts.append(Shaft(14, 15, 0, 0, k=90, I=0)) # elastomer coupling soft part
+    shafts.append(Shaft(15, 16, (51.75/3), 32.2, idl=16, G=27e9, E=70e9, rho=2710)) # elastomer coupling hub
+
+    '''Shaft, bellow coupling, torque transducer, bellow coupling'''
+    shafts.append(Shaft(17, 18, 319, 8)) # long shaft
+    shafts.append(Shaft(19, 20, 0, 0, k=15e3, I=2e-5)) # coupling
+    shafts.append(Shaft(20, 21, 0, 0, k=5400, I=1.3e-5)) # torque transducer
+    shafts.append(Shaft(21, 22, 0, 0, k=15e3, I=2e-5)) # coupling
+
+    '''First gearbox, shafts, couplings'''
+    gear1 = Gear(22, I=3.2467e-4, R=1)
+    gears.append(gear1) # gear
+    gears.append(Gear(23, I=0, R=3, parent=gear1))
+    shafts.append(Shaft(23, 24, 0, 0, k=3.1e4, I=1.2e-4)) # coupling
+    shafts.append(Shaft(24, 25, 33.5, 16)) # shaft
+    shafts.append(Shaft(25, 26, 0, 0, k=3.1e4, I=1.2e-4)) # coupling
+    shafts.append(Shaft(26, 27, 62, 25)) # shaft
+
+    '''Second gearbox, shafts, couplings'''
+    gear2 = Gear(27, I=7.315601e-5, R=1)
+    gears.append(gear2) # shaft & gear
+    gears.append(Gear(28, I=1.1265292e-2, R=4, parent=gear2))
+    shafts.append(Shaft(28, 29, 105, 24.5)) # shaft
+    shafts.append(Shaft(29, 30, 0, 0, k=138e3, I=2.8e-4)) # coupling
+    shafts.append(Shaft(30, 31, 0, 0, k=2e4, I=4e-5)) # torque transducer
+    shafts.append(Shaft(31, 32, 0, 0, k=138e3, I=2.8e-4)) # coupling
+    shafts.append(Shaft(32, 33, 117, 25)) # shaft
+    disks.append(Disk(33, I=7.5863e-3)) # mass
+    shafts.append(Shaft(33, 34, 77, 25))
+    shafts.append(Shaft(34, 35, 0, 0, k=31e3, I=0.12e-3))
+
+    '''Planetary gear, driving motor'''
+    gear3 = Gear(21, I=0, R=8) # planetary gear
+    gears.append(gear3)
+    gears.append(Gear(22, I=1.32e-4, R=1, parent=gear3))
+    disks.append(Disk(22, I=6.5e-4)) # load generator
+
+    assembly = Assembly(shafts, disk_elements=disks, gear_elements=gears)
     _, f, _ = assembly.modal_analysis()
+    print(f.round(2))
 
     return assembly
-
-def manually_built_3dof():
-    """
-    Mechanical drivetrain with manually constructed state matrices.
-
-    Returns:
-        assembly: opentorsion assembly instance
-            A 3-DOF mechanical drivetrain modeled as lumped masses and flexible shafts
-            (lumped mass - shaft - lumped mass - shaft - lumped mass).
-    """
-    # Disk 1 inertia
-    J1 = 0.8
-    # Disk 2 inertia
-    J2 = 0.5
-    # Disk 3 inertia
-    J3 = 0.7
-    # Shaft 1 stiffness
-    k1 = 1.5e4
-    # Shaft 2 stiffness
-    k2 = 1e4
-
-    return M, C, K
 
 def testbench():
     '''
@@ -165,8 +177,7 @@ def state_matrices(assembly):
         B : numpy.ndarray
             The input matrix
     """
-    M, K = assembly.M(), assembly.K()  # Mass and stiffness matrices
-    C = assembly.C_modal(M, K, xi=0.02)  # Modal damping matrix, modal damping coefficient 0.02 used
+    M, C, K = assembly.M(), assembly.C(), assembly.K()  # Mass and stiffness matrices
     Z = np.zeros(M.shape)
     I = np.eye(M.shape[0])
     M_inv = LA.inv(M)
@@ -177,74 +188,3 @@ def state_matrices(assembly):
 
     return A, B
 
-def dlti_system(A, B, C, D, dt=1):
-    '''
-    Returns an instance of a discrete LTI-system using the state-space matrices.
-    '''
-
-    return dlti(A, B, C, D, dt=dt)
-
-def lti_system(A, B, C, D):
-    '''
-    Returns an instance of a continuous LTI-system using the state-space matrices.
-    '''
-
-    return lti(A, B, C, D)
-
-def noisy_simulation(time, A, B, C, U):
-    '''
-    A simulation with process and measurement noise.
-
-    Returns the system output.
-    '''
-    dt = np.mean(np.diff(time))
-    ## add gaussian white noise to measurement and process ##
-    R = 1e-3*np.eye(A.shape[0]) # measurement covariance
-    Q = 1e-2*np.eye(A.shape[0]) # process covariance
-    r = np.random.multivariate_normal(np.zeros(R.shape[0]), R, time.shape[0]).T
-    q = np.random.multivariate_normal(np.zeros(Q.shape[0]), Q, time.shape[0]).T
-
-    x = np.zeros((A.shape[0], 1))
-    y = np.zeros((A.shape[0], 1))
-
-    for i in range(1, time.shape[0]):
-        x_new = A @ x + (B @ U[:,i]).reshape(B.shape[0], 1) + q[:,i].reshape(q.shape[0], 1)
-        y = np.hstack((y, C @ x_new + r[:,i].reshape(r.shape[0], 1)))
-        x = x_new
-
-    return time, y
-
-def simulated_experiment(show_plot=False, pickle_data=False):
-    '''
-    Simulation of a 3-DOF mechanical drivetrain excited with a sinusoidal excitation.
-    '''
-    assembly = drivetrain_3dof()
-    A, B = state_matrices(assembly)
-    C = np.eye(B.shape[0])
-    D = np.zeros(B.shape)
-
-    t = np.arange(0, 100.01, 0.01)
-    dt = np.mean(np.diff(t))
-
-    load = step_excitation(20, 21, 100)
-
-    U = excitation_matrix(t, load, dof=assembly.dofs)
-
-    ## continuous time simulation ##
-    sys = lti_system(A, B, C, D)
-    tout, yout, xout = lsim(sys, U.T, t)
-
-    if show_plot:
-        plt.plot(tout, yout[:,-1], label='continuous')
-        plt.ylim(0, 5000)
-        plt.legend()
-        plt.show()
-
-    if pickle_data:
-        filename = '../data/drivetrain_simulation.pickle'
-        with open(filename, 'wb') as handle:
-            pickle.dump([t, U, tout, yout], handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-if __name__ == "__main__":
-    assembly = testbench()
-    # simulated_experiment(show_plot=True, pickle_data=False)
