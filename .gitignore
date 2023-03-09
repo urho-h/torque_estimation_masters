@@ -39,4 +39,5 @@ Thumbs.db
 # pickled files #
 *.pickle
 
+# csv files #
 *.csv
