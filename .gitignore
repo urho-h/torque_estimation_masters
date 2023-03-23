@@ -39,9 +39,6 @@ Thumbs.db
 # pickled files #
 *.pickle
 
-# csv files #
-*.csv
-
 data/*
 !step
 !data.txt
