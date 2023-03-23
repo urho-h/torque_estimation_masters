@@ -42,6 +42,7 @@ Thumbs.db
 # csv files #
 *.csv
 
-data
-
-Experiment31.csv
+data/*
+!step
+!data.txt
+!testbench_models
