@@ -76,16 +76,20 @@ def get_testbench_state_space(dt):
 
     A, B = tb.c2d(Ac, Bc, dt)
 
-    return A, B, C, D
+    c_mod = np.insert(C, 0, np.zeros((1, C.shape[1])), 0)
+    c_mod[0,0] += 1 # additional measurement: motor speed
+    C_mod1 = np.insert(c_mod, 3, np.zeros((1, c_mod.shape[1])), 0)
+    C_mod1[3,22] += 1.9e5 # additional measurement: first shaft torque, assumed to be equal with motor torque
+    C_mod = np.insert(C_mod1, 5, np.zeros((1, C_mod1.shape[1])), 0)
+    C_mod[5,22+19] += 2.0e4 # additional measurement: second torque transducer
+
+    return A, B, C_mod, D
 
 
 def get_data_equation_matrices(A, B, C, D, n, bs):
-    c_mat = np.insert(C, 2, np.zeros((1, C.shape[1])), 0)
-    c_mat[2,22] += 1.9e5 # additional measurement: first shaft torque, assumed to be equal with motor torque
-
     D2 = de.second_difference_matrix(bs, B.shape[1])
-    O = de.O(A, c_mat, bs)
-    G = de.gamma(A, B, c_mat, bs)
+    O = de.O(A, C, bs)
+    G = de.gamma(A, B, C, bs)
 
     return O, G, D2
 
@@ -196,12 +200,9 @@ if __name__ == "__main__":
     motor_data = np.delete(m_data, 0, 0) # delete header row
 
     t_motor = motor_data[:,0]
-    tau_motor = motor_data[:,2]
-    tau_propeller = motor_data[:,6]
-
-    # plt.plot(t_motor, tau_propeller)
-    # plt.plot(t_motor[25000:30000], tau_propeller[15000:20000])
-    # plt.show()
+    tau_motor = low_pass_filter(motor_data[:,2], 400, 1000)
+    omega_motor = low_pass_filter(motor_data[:,4]*(2*np.pi/60), 400, 1000)
+    tau_propeller = low_pass_filter(motor_data[:,6], 400, 1000)
 
     dt = np.mean(np.diff(t_motor))
     n = 5000
@@ -217,20 +218,19 @@ if __name__ == "__main__":
     enc1 = sensor_data[:,1]*(np.pi/180)
     enc2 = sensor_data[:,3]*(np.pi/180)
 
-    omega1 = low_pass_filter(np.gradient(enc1, t_sensor), 200, 3000)
-    omega2 = low_pass_filter(np.gradient(enc2, t_sensor), 200, 3000)
-    plt.plot(omega1)
-    plt.show()
+    omega1 = low_pass_filter(np.gradient(enc1, t_sensor), 400, 3000)
+    omega2 = low_pass_filter(np.gradient(enc2, t_sensor), 400, 3000)
 
-    torq1 = low_pass_filter(sensor_data[:,-2]*1/10, 200, 1000)
-    torq2 = low_pass_filter(sensor_data[:,-1]*1/4, 200, 1000)
+    torq1 = low_pass_filter(sensor_data[:,-2]*1/10, 400, 3000)
+    torq2 = low_pass_filter(sensor_data[:,-1]*1/4, 400, 3000)
 
     ##### Simulate with measured motor and propeller torques #####
     # tout, yout = time_domain_test(t_motor, tau_motor, tau_propeller)
     # plot_time_domain_test(t_sensor, omega1, torq1, tout, yout)
 
-    filename = "estimates/estimates_l0_1_lowpass.pickle"
+    filename = "estimates/estimates_l0_01_lowpass_motor_known.pickle"
     use_save_data = False
+    pickle_results = True
 
     if use_save_data:
         with open(filename, 'rb') as handle:
@@ -239,15 +239,18 @@ if __name__ == "__main__":
 
     else:
         measurements_noise = np.vstack((
+            omega_motor[t_start:t_end],
             omega1[3*t_start:3*t_end:3],
             omega2[3*t_start:3*t_end:3],
             tau_motor[t_start:t_end],
-            torq1[3*t_start:3*t_end:3]
+            torq1[3*t_start:3*t_end:3],
+            torq2[3*t_start:3*t_end:3],
         )).T
 
         tikh, lasso = estimate_input(measurements_noise, bs, n, dt)
 
-        with open(filename, 'wb') as handle:
-            pickle.dump([tikh, lasso], handle, protocol=pickle.HIGHEST_PROTOCOL)
+        if pickle_results:
+            with open(filename, 'wb') as handle:
+                pickle.dump([tikh, lasso], handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     plot_estimates(t_motor, t_sensor, tau_motor, tau_propeller, tikh, lasso, int(n/bs), (t_start, t_end))
