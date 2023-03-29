@@ -43,3 +43,4 @@ data/*
 !step
 !data.txt
 !testbench_models
+!ice_excitation
