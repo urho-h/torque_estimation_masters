@@ -76,14 +76,7 @@ def get_testbench_state_space(dt):
 
     A, B = tb.c2d(Ac, Bc, dt)
 
-    c_mod = np.insert(C, 0, np.zeros((1, C.shape[1])), 0)
-    c_mod[0,0] += 1 # additional measurement: motor speed
-    C_mod1 = np.insert(c_mod, 3, np.zeros((1, c_mod.shape[1])), 0)
-    C_mod1[3,22] += 1.9e5 # additional measurement: first shaft torque, assumed to be equal with motor torque
-    C_mod = np.insert(C_mod1, 5, np.zeros((1, C_mod1.shape[1])), 0)
-    C_mod[5,22+19] += 2.0e4 # additional measurement: second torque transducer
-
-    return A, B, C_mod, D
+    return A, B, C, D
 
 
 def get_data_equation_matrices(A, B, C, D, n, bs):
@@ -229,8 +222,8 @@ if __name__ == "__main__":
     # plot_time_domain_test(t_sensor, omega1, torq1, tout, yout)
 
     filename = "estimates/estimates_l0_01_lowpass_motor_known.pickle"
-    use_save_data = False
-    pickle_results = True
+    use_save_data = True
+    pickle_results = False
 
     if use_save_data:
         with open(filename, 'rb') as handle:
@@ -239,12 +232,9 @@ if __name__ == "__main__":
 
     else:
         measurements_noise = np.vstack((
-            omega_motor[t_start:t_end],
             omega1[3*t_start:3*t_end:3],
             omega2[3*t_start:3*t_end:3],
-            tau_motor[t_start:t_end],
-            torq1[3*t_start:3*t_end:3],
-            torq2[3*t_start:3*t_end:3],
+            torq1[3*t_start:3*t_end:3]
         )).T
 
         tikh, lasso = estimate_input(measurements_noise, bs, n, dt)

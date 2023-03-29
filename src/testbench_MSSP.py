@@ -109,7 +109,7 @@ def state_space_matrices(inertia, stiff, damp, damp_ext, ratios):
 
     A11 = (np.diag(cn2d) + np.diag(cn, k=1) + np.diag(cn, k=-1)) / inertia.reshape(inertia.shape[0], 1)
 
-    ks = -np.hstack((stiff, 0))
+    ks = -np.hstack((stiff*ratios, 0))
     A12 = np.delete(
         (np.diag(ks) + np.diag(stiff, k=-1)) / inertia.reshape(inertia.shape[0], 1), -1, axis=1
     )
