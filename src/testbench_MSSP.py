@@ -32,7 +32,7 @@ def parameters():
                             90.00,
                             90.00,
                             90.00,
-                            3*30.13, # multiplied by 3 as the new shaft is three times stiffer
+                            30.13,
                             4.19e4,
                             5.40e3,
                             4.19e4,
