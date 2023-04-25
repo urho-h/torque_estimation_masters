@@ -88,7 +88,7 @@ def progressbar(it, prefix="", size=60, out=sys.stdout):
     print("\n", flush=True, file=out)
 
 
-def L_curve(sys, measurements, times, lambdas, use_zero_init=True, use_lasso=False):
+def L_curve(sys, measurements, times, lambdas, use_zero_init=True):
     dt = np.mean(np.diff(times))
     bs = len(times)
     n = len(times)
@@ -106,22 +106,47 @@ def L_curve(sys, measurements, times, lambdas, use_zero_init=True, use_lasso=Fal
     y = measurements.reshape(-1,1)
 
     for i in progressbar(range(len(lambdas)), "Calculating estimates :", len(lambdas)):
-        if use_lasso:
-            estimate, x_init = lasso_problem(y, O, G, D2, initial_state=x_init, lam=lambdas[i])
-        else:
-            estimate, x_init = tikhonov_problem(y, O, G, D2, initial_state=x_init, lam=lambdas[i])
+        estimate, x_init = tikhonov_problem(y, O, G, D2, initial_state=x_init, lam=lambdas[i])
         input_estimates.append(estimate)
 
     for i in range(len(lambdas)):
         plt.yscale("log")
         plt.xscale("log")
-        if use_lasso:
-            plt.scatter(np.linalg.norm(y - G @ input_estimates[i]), np.linalg.norm(L @ input_estimates[i]), color='blue')
-        else:
-            plt.scatter(np.linalg.norm(y - G @ input_estimates[i]), np.linalg.norm(D2 @ input_estimates[i]), color='blue')
+        plt.scatter(np.linalg.norm(y - G @ input_estimates[i]), np.linalg.norm(D2 @ input_estimates[i]), color='blue')
 
     plt.xlabel("$||y-\Gamma u||$")
     plt.ylabel("$||L u||$")
+    plt.show()
+
+
+def pareto_curve(sys, measurements, times, lambdas, use_zero_init=True):
+    dt = np.mean(np.diff(times))
+    bs = len(times)
+    n = len(times)
+
+    A, B, C, D = sys
+    O, G, D2, L = get_data_equation_matrices(A, B, C, D, n, bs)
+
+    if use_zero_init:
+        x_init = np.zeros((O.shape[1], 1))
+    else:
+        x_init = None
+
+    input_estimates = []
+
+    y = measurements.reshape(-1,1)
+
+    for i in progressbar(range(len(lambdas)), "Calculating estimates :", len(lambdas)):
+        estimate, x_init = lasso_problem(y, O, G, L, initial_state=x_init, lam=lambdas[i])
+        input_estimates.append(estimate)
+
+    for i in range(len(lambdas)):
+        # plt.yscale("log")
+        # plt.xscale("log")
+        plt.scatter(np.linalg.norm(L @ input_estimates[i], ord=1), np.linalg.norm(y - G @ input_estimates[i]), color='blue')
+
+    plt.ylabel("$||y-\Gamma u||$")
+    plt.xlabel("$||L u||$")
     plt.show()
 
 
@@ -187,28 +212,29 @@ def subplot_input_estimates(time, tau_motor, tau_propeller, tikh_estimates, lass
     loop_len = int(n/bs)
     ax1 = plt.subplot(211)
     for i in range(loop_len):
-        plt.plot(time[i*bs:(i+1)*bs], tau_motor[i*bs:(i+1)*bs], linestyle='solid', color='black')
-        plt.plot(time[i*bs:(i+1)*bs], tikh_estimates[i][::2], linestyle='dotted', color='red')
-        plt.plot(time[i*bs:(i+1)*bs], lasso_estimates[i][::2], linestyle='dashed', alpha=0.5, color='blue')
+        plt.plot(time[i*bs:(i+1)*bs], tau_motor[i*bs:(i+1)*bs], linestyle='solid', color='C0')
+        plt.plot(time[i*bs:(i+1)*bs], tikh_estimates[i][::2], linestyle='dotted', color='C1')
+        plt.plot(time[i*bs:(i+1)*bs], lasso_estimates[i][::2], linestyle='dashed', color='C2')
 
-    plt.legend(('Motor side input', 'Tikhonov', 'LASSO'))
+    plt.legend(('Motor side input', 'Tikhonov', '$\ell_1$'))
     plt.ylabel('Torque (Nm)')
-    plt.xlim(2, 8)
-    plt.ylim(2.3, 2.7)
+    # plt.xlim(0.1, 10)
+    # plt.ylim(-3, 3)
     plt.grid()
     plt.tick_params('x', labelbottom=False)
 
     ax2 = plt.subplot(212)
     for i in range(loop_len):
-        plt.plot(time[i*bs:(i+1)*bs], tau_propeller[i*bs:(i+1)*bs], linestyle='solid', color='black')
-        plt.plot(time[i*bs:(i+1)*bs], tikh_estimates[i][1::2], linestyle='dotted', color='red')
-        plt.plot(time[i*bs:(i+1)*bs], lasso_estimates[i][1::2], linestyle='dashed', alpha=0.5, color='blue')
+        plt.plot(time[i*bs:(i+1)*bs], tau_propeller[i*bs:(i+1)*bs], linestyle='solid', color='C0')
+        plt.plot(time[i*bs:(i+1)*bs], tikh_estimates[i][1::2], linestyle='dotted', color='C1')
+        plt.plot(time[i*bs:(i+1)*bs], lasso_estimates[i][1::2], linestyle='dashed', color='C2')
 
     plt.xlabel('Time (s)')
     plt.ylabel('Torque (Nm)')
-    plt.xlim(2, 8)
-    plt.ylim(-1.5, 1.5)
+    # plt.xlim(0.1, 10)
+    # plt.ylim(-6, 4)
     plt.grid()
+    # plt.savefig("step_input_estimate.pdf")
 
     plt.show()
 
@@ -242,22 +268,24 @@ def plot_input_estimates(time, tau_motor, tau_propeller, tikh_estimates, lasso_e
 
 def plot_virtual_sensor(times, torques, yout_tikh, yout_lasso):
     plt.figure()
-    plt.plot(times, torques[:,-2], label='Measured')
-    plt.plot(times, yout_tikh[:,-2], label='Tikhonov estimate')
-    plt.plot(times, yout_lasso[:,-2], label='LASSO estimate', alpha=0.5)
+    plt.plot(times[100:], torques[100:,-2], label='Measured', linestyle='solid', color='C0')
+    plt.plot(times[100:], yout_tikh[100:,-2], label='Tikhonov estimate', linestyle='dotted', color='C1')
+    plt.plot(times[100:], yout_lasso[100:,-2], label='LASSO estimate', alpha=0.5, linestyle='dashed', color='C2')
     plt.legend()
     plt.title('Torque transducer 1')
 
     plt.figure(figsize=(12,4))
-    plt.plot(times, torques[:,-1], label='Measured torque', color='C0')
-    plt.plot(times, yout_tikh[:,-1], label='Tikhonov estimate', linestyle='solid', color='C2')
-    plt.plot(times, yout_lasso[:,-1], label='LASSO estimate', alpha=0.5)
+    plt.plot(times[100:], torques[100:,-1], label='Measured torque', linestyle='solid', color='C0')
+    plt.plot(times[100:], yout_tikh[100:,-1], label='Tikhonov estimate', linestyle='dotted', color='C1')
+    plt.plot(times[100:], yout_lasso[100:,-1], label='LASSO estimate', alpha=0.5, linestyle='dashed', color='C2')
     plt.legend()
     plt.title('Torque transducer 2')
+    plt.grid()
 
     # plt.ylim(0, 25)
     # plt.xlim(6.5, 8)
     plt.ylabel('Torque (Nm)')
     plt.xlabel('Time (s)')
+    # plt.savefig("step_torque_transducer.pdf")
 
     plt.show()

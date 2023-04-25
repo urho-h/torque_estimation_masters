@@ -191,29 +191,29 @@ def run_kalman_filter(times, meas_speeds, meas_torques, torques, motor, propelle
 
     A_fls, F_fls, C_fls, B_m_fls, T_fls, R_fls, Q_fls, S_fls = fixed_lag_smoothing(A_e, F_e, C_e, B_m, T_e, R_e, Q_e, S_e, lag)
 
-    # KF_filter, KF_pred, Pz, K = construct_kalman_filter(A_fls, C_fls, T_fls, Q_fls, R_fls, dt)
-    KF_filter, KF_pred, Pz, K = construct_kalman_filter(A_e, C_e, T_e, Q_e, R_e, dt)
+    KF_filter, KF_pred, Pz, K = construct_kalman_filter(A_fls, C_fls, T_fls, Q_fls, R_fls, dt)
+    # KF_filter, KF_pred, Pz, K = construct_kalman_filter(A_e, C_e, T_e, Q_e, R_e, dt)
 
     ## Estimation
     y = np.vstack([meas_speeds, meas_torques])
     u = mu_m*np.ones(y.shape[1])
     Y = np.vstack([u, y])
 
-    # KF2 = dlti(
-    #     KF_filter.A,
-    #     np.hstack([B_m_fls, KF_filter.B]),
-    #     KF_filter.C,
-    #     np.zeros((KF_filter.C.shape[0], KF_filter.B.shape[1]+1)),
-    #     dt=dt
-    # )
-
     KF2 = dlti(
         KF_filter.A,
-        np.hstack([B_m, KF_filter.B]),
+        np.hstack([B_m_fls, KF_filter.B]),
         KF_filter.C,
         np.zeros((KF_filter.C.shape[0], KF_filter.B.shape[1]+1)),
         dt=dt
     )
+
+    # KF2 = dlti(
+    #     KF_filter.A,
+    #     np.hstack([B_m, KF_filter.B]),
+    #     KF_filter.C,
+    #     np.zeros((KF_filter.C.shape[0], KF_filter.B.shape[1]+1)),
+    #     dt=dt
+    # )
 
     tout, yout, xout = dlsim(KF2, Y.T, t=times) # z_hat
 
@@ -229,19 +229,24 @@ def run_kalman_filter(times, meas_speeds, meas_torques, torques, motor, propelle
     plt.title('Torque transducer 1')
     plt.legend()
 
-    plt.figure()
-    plt.plot(times, torques[:,-1], label="measured")
-    # plt.plot(times[:-lag], torque_estimates[lag:,rpm_sensor_locations[-1]+10], label="estimate", alpha=0.5)
-    plt.plot(times, torque_estimates[:,rpm_sensor_locations[-1]+10], label="estimate", alpha=0.5)
+    plt.subplot(211)
+    plt.plot(times[100:], torques[100:,-1], label="Measured")
+    plt.plot(times[100:-lag], torque_estimates[lag+100:,rpm_sensor_locations[-1]+10], label="Estimate", linestyle='dashed')
     plt.title('Torque transducer 2')
     # plt.ylim(0, 30)
     plt.legend()
+    plt.grid()
 
-    plt.figure()
-    plt.plot(times, input_estimates, label="estimate", alpha=0.5)
+    plt.subplot(212)
+    plt.plot(times[100:], input_estimates[100:], label=("Motor side estimate", "Propeller side estimate"))
     plt.title('Input estimates')
     plt.legend()
+    plt.grid()
+    # plt.savefig("kf_step_estimates.pdf")
+
     plt.show()
+
+    return times, input_estimates, torque_estimates
 
 
 if __name__ == "__main__":
