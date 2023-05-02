@@ -45,6 +45,7 @@ def plot_ice_experiment():
         "text.usetex": True,
         "font.family": "Computer Modern",
         "font.size": 12,
+        "figure.figsize": (6,4),
     })
 
     plt.figure()
@@ -60,12 +61,15 @@ def plot_ice_experiment():
     plt.plot(times[:-10], input_estimates_kf[10:,1], linestyle='dashed', label='Kalman filter')
     plt.plot(times[:-1], input_tikh[1::2], linestyle='dotted', label='H-P trend filter', alpha=0.8)
     plt.ylim(-5,20)
+    plt.ylabel('Torque (Nm)')
+    plt.tick_params('x', labelbottom=False)
 
     plt.subplot(313)
     plt.plot(times, torques[:,-1], label='Measurement')
     plt.plot(times[:-10], torque_estimates_kf[10:,-1], linestyle='dashed', label='Kalman filter')
     plt.plot(times[:-2], states_tikh[:,-1], linestyle='dotted', label='H-P trend filter', alpha=0.8)
     plt.ylim(0,26)
+    plt.xlabel('Time (s)')
 
     plt.legend(
         loc='upper center',
@@ -95,6 +99,7 @@ def plot_ice_experiment():
     plt.plot(times_sim, propeller_sim, label='Measurement')
     plt.plot(times_sim[:-1], input_lasso_sim[1::2], linestyle='dashed', label='$\ell_1$-regularization', alpha=0.8)
     plt.ylim(-1,20)
+    plt.ylabel('Torque (Nm)')
     plt.tick_params('x', labelbottom=False)
 
     plt.subplot(324)

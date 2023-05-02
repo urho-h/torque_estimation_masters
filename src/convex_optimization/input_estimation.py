@@ -88,7 +88,7 @@ def progressbar(it, prefix="", size=60, out=sys.stdout):
     print("\n", flush=True, file=out)
 
 
-def L_curve(sys, measurements, times, lambdas, use_zero_init=True):
+def L_curve(sys, measurements, times, lambdas, use_zero_init=True, show_plot=False):
     dt = np.mean(np.diff(times))
     bs = len(times)
     n = len(times)
@@ -109,15 +109,23 @@ def L_curve(sys, measurements, times, lambdas, use_zero_init=True):
         estimate, x_init = tikhonov_problem(y, O, G, D2, initial_state=x_init, lam=lambdas[i])
         input_estimates.append(estimate)
 
+    norm, res_norm = [], []
     for i in range(len(lambdas)):
+        norm.append(np.linalg.norm(y - G @ input_estimates[i]))
+        res_norm.append(np.linalg.norm(D2 @ input_estimates[i]))
+
+    if show_plot:
         plt.yscale("log")
         plt.xscale("log")
-        plt.scatter(np.linalg.norm(y - G @ input_estimates[i]), np.linalg.norm(D2 @ input_estimates[i]), color='blue')
+        plt.scatter(norm, res_norm, color='blue')
+        plt.xlabel("$||y-\Gamma u||_2$")
+        plt.ylabel("$||L u||_2$")
+        plt.grid(which="both")
+        plt.tight_layout()
+        plt.savefig("ice_L_curve.pdf")
+        plt.show()
 
-    plt.xlabel("$||y-\Gamma u||$")
-    plt.ylabel("$||L u||$")
-    plt.show()
-
+    return norm, res_norm
 
 def pareto_curve(sys, measurements, times, lambdas, use_zero_init=True):
     dt = np.mean(np.diff(times))

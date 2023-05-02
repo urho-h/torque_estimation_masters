@@ -9,6 +9,14 @@ from convex_optimization import input_estimation as ie
 from kalmanfilter import kalmanfilter as kf
 
 
+plt.rcParams.update({
+    "text.usetex": True,
+    "font.family": "Computer Modern",
+    "font.size": 12,
+    "figure.figsize": (6,4),
+})
+
+
 def ice_excitation_data():
     times = np.genfromtxt("../data/ice_excitation/times.csv", delimiter=",")
     speeds = np.genfromtxt("../data/ice_excitation/speeds.csv", delimiter=",", usecols=(6,7,13,14,21))
@@ -30,7 +38,7 @@ def get_testbench_state_space(dt):
     return A, B, C, D
 
 
-def ice_L_curve(times, dt, load):
+def ice_L_curve(times, dt, load, show_plot=False, pickle_data=False):
     A, B, C, D = get_testbench_state_space(dt)
     sys = (A, B, C, D)
 
@@ -38,13 +46,15 @@ def ice_L_curve(times, dt, load):
     e3 = np.random.normal(0, .01, yout.shape)
     y_noise = yout + e3
 
-    lambdas = [1e-4, 1e-3, 1e-2, 1e-1, 1, 10, 100, 1000, 10000]
-    # lambdas = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    lambdas = [1e-5, 1e-4, 1e-3, 1e-2, 5e-2, 1e-1, 5e-1, 1, 10, 100]
 
-    ie.L_curve(sys, y_noise, tout, lambdas)
+    l_norm, residual_norm = ie.L_curve(sys, y_noise, tout, lambdas, show_plot=True)
 
+    if pickle_data:
+        with open('estimates/ice_experiment_l_curve.pickle', 'wb') as handle:
+            pickle.dump([l_norm, residual_norm])
 
-def ice_excitation_simulated(run_cvx=False, run_kf=False, show_plot=False, pickle_results=False):
+def ice_excitation_simulated(run_cvx=False, run_kf=False, run_l_curve=False, show_plot=False, pickle_results=False):
     times, meas_speeds, meas_torques, torques, motor, propeller = ice_excitation_data()
 
     t_start = (times >= 6.6).nonzero()[0][0]
@@ -66,7 +76,26 @@ def ice_excitation_simulated(run_cvx=False, run_kf=False, show_plot=False, pickl
     dt = np.mean(np.diff(sim_times))
     bs = int(len(sim_times)/3)
 
-    # ice_L_curve(sim_times, dt, U_ice)
+    plot_input = False
+    if plot_input:
+        plt.subplot(211)
+        plt.plot(sim_times, U_ice[:,0], label='Driving motor setpoint', color='blue')
+        plt.ylabel('Torque (Nm)')
+        plt.ylim(2.5,2.9)
+        plt.legend()
+
+        plt.subplot(212)
+        plt.plot(sim_times, U_ice[:,1], label='Loading motor setpoint', color='red')
+        plt.xlabel('Time (s)')
+        plt.ylabel('Torque (Nm)')
+        plt.legend()
+        plt.tight_layout()
+
+        plt.savefig("ice_setpoint.pdf")
+        plt.show()
+
+    if run_l_curve:
+        ice_L_curve(sim_times, dt, U_ice, show_plot=True, pickle_data=True)
 
     A, B, C, D = get_testbench_state_space(dt)
     sys = (A, B, C, D)
@@ -221,5 +250,5 @@ def ice_experiment(run_cvx=False, run_kf=False, show_plot=False, pickle_results=
 
 
 if __name__ == "__main__":
-    ice_excitation_simulated(run_cvx=True, run_kf=True, pickle_results=True)
-    ice_experiment(run_cvx=True, run_kf=True, pickle_results=True)
+    ice_excitation_simulated(run_cvx=False, run_kf=False, run_l_curve=False, pickle_results=False)
+    ice_experiment(run_cvx=False, run_kf=False, pickle_results=False)

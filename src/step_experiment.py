@@ -9,6 +9,14 @@ from convex_optimization import input_estimation as ie
 from kalmanfilter import kalmanfilter as kf
 
 
+plt.rcParams.update({
+    "text.usetex": True,
+    "font.family": "Computer Modern",
+    "font.size": 12,
+    "figure.figsize": (6,4),
+})
+
+
 def low_pass_filter(signal, cutoff, fs):
     '''
     A fifth-order Butterworth low-pass filter.
@@ -30,7 +38,7 @@ def get_testbench_state_space(dt):
     return A, B, C, D
 
 
-def step_experiment(run_cvx=False, run_kf=False):
+def step_experiment(run_cvx=False, run_kf=False, pickle_results=False):
     fs = 1000
     sim_times = np.arange(0, 20, 1/fs)
     dt = np.mean(np.diff(sim_times))
@@ -47,6 +55,23 @@ def step_experiment(run_cvx=False, run_kf=False):
     U_step[13200:15200,1] += 1.0
     U_step[15200:18200,1] -= 4.0
     U_step[18200:,1] += 0.5
+
+    plot_input = False
+    if plot_input:
+        plt.subplot(211)
+        plt.plot(sim_times[:10000], U_step[10000:,0], label='Driving motor setpoint', color='blue')
+        plt.ylabel('Torque (Nm)')
+        plt.legend()
+
+        plt.subplot(212)
+        plt.plot(sim_times[:10000], U_step[10000:,1], label='Loading motor setpoint', color='red')
+        plt.xlabel('Time (s)')
+        plt.ylabel('Torque (Nm)')
+        plt.legend()
+        plt.tight_layout()
+
+        plt.savefig("step_setpoint.pdf")
+        plt.show()
 
     A, B, C, D = get_testbench_state_space(dt)
     sys = (A, B, C, D)
@@ -76,6 +101,7 @@ def step_experiment(run_cvx=False, run_kf=False):
             step_meas[:,0:3],
             bs,
             step_to[:10000],
+            lam=0.001,
             use_virtual_sensor=vs
         )
 
@@ -84,6 +110,7 @@ def step_experiment(run_cvx=False, run_kf=False):
             step_meas[:,0:3],
             bs,
             step_to[:10000],
+            lam=0.001,
             use_zero_init=True,
             use_lasso=True,
             use_virtual_sensor=vs
@@ -95,7 +122,7 @@ def step_experiment(run_cvx=False, run_kf=False):
             ie.plot_virtual_sensor(sim_times[:10000], step_yo[10000:,2:], states_tikh, states_lasso)
 
     if run_kf:
-        _, _, _ = kf.run_kalman_filter(
+        times_kf, input_estimates_kf, torque_estimates_kf = kf.run_kalman_filter(
             sim_times[:10000],
             np.vstack((step_meas[:,0], step_meas[:,1])),
             step_meas[:,2],
@@ -104,6 +131,24 @@ def step_experiment(run_cvx=False, run_kf=False):
             U_step[:,-1],
             np.mean(U_step[:,0])
         )
+
+    if pickle_results:
+        with open('estimates/step_experiment_lam0001.pickle', 'wb') as handle:
+            pickle.dump(
+                [
+                    sim_times,
+                    U_step[:,0],
+                    U_step[:,1],
+                    input_tikh,
+                    input_lasso,
+                    step_meas[:,2:],
+                    states_tikh,
+                    states_lasso,
+                    input_estimates_kf,
+                    torque_estimates_kf
+                ],
+                handle,
+                protocol=pickle.HIGHEST_PROTOCOL)
 
 
 def sparse_experiment(run_cvx=False, run_kf=False):
@@ -304,8 +349,8 @@ def sinusoidal_experiment():
 
 
 if __name__ == "__main__":
-    # step_experiment(run_cvx=True, run_kf=True)
+    step_experiment(run_cvx=True, run_kf=True, pickle_results=True)
 
-    sparse_L_curve_test()
-    sparse_pareto_curve_test()
-    sparse_experiment(run_cvx=True, run_kf=False)
+    # sparse_L_curve_test()
+    # sparse_pareto_curve_test()
+    # sparse_experiment(run_cvx=True, run_kf=False)
