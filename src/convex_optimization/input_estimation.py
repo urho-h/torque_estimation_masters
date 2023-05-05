@@ -64,6 +64,33 @@ def lasso_problem(meas, obsrv, gamm, regu, initial_state=None, lam=1, cmplx=Fals
     return d.value, x_value
 
 
+def elastic_net_problem(meas, obsrv, gamm, regu, initial_state=None, lam1=1, lam2=1, cmplx=False):
+    '''
+    This function uses the cvxpy library to solve an elastic net problem.
+    '''
+    d = cp.Variable((gamm.shape[1], 1), complex=cmplx)
+
+    if initial_state is None:
+        x = cp.Variable((obsrv.shape[1], 1), complex=cmplx)
+    else:
+        x = initial_state
+
+    measurements = cp.Parameter(meas.shape)
+    measurements.value = meas
+
+    objective = cp.Minimize(cp.sum_squares(measurements - obsrv @ x - gamm @ d) + lam1 * cp.sum_squares(regu @ d) + lam2 * cp.pnorm(regu @ d, 1))
+
+    prob = cp.Problem(objective)
+    prob.solve()
+
+    if initial_state is None:
+        x_value = x.value
+    else:
+        x_value = initial_state
+
+    return d.value, x_value
+
+
 def get_data_equation_matrices(A, B, C, D, n, bs):
     D2 = de.second_difference_matrix(bs, B.shape[1])
     O = de.O(A, C, bs)
@@ -88,7 +115,7 @@ def progressbar(it, prefix="", size=60, out=sys.stdout):
     print("\n", flush=True, file=out)
 
 
-def L_curve(sys, measurements, times, lambdas, use_zero_init=True, show_plot=False):
+def L_curve(sys, measurements, times, lambdas, use_zero_init=True):
     dt = np.mean(np.diff(times))
     bs = len(times)
     n = len(times)
@@ -114,18 +141,8 @@ def L_curve(sys, measurements, times, lambdas, use_zero_init=True, show_plot=Fal
         norm.append(np.linalg.norm(y - G @ input_estimates[i]))
         res_norm.append(np.linalg.norm(D2 @ input_estimates[i]))
 
-    if show_plot:
-        plt.yscale("log")
-        plt.xscale("log")
-        plt.scatter(norm, res_norm, color='blue')
-        plt.xlabel("$||y-\Gamma u||_2$")
-        plt.ylabel("$||L u||_2$")
-        plt.grid(which="both")
-        plt.tight_layout()
-        plt.savefig("ice_L_curve.pdf")
-        plt.show()
-
     return norm, res_norm
+
 
 def pareto_curve(sys, measurements, times, lambdas, use_zero_init=True):
     dt = np.mean(np.diff(times))
@@ -158,13 +175,18 @@ def pareto_curve(sys, measurements, times, lambdas, use_zero_init=True):
     plt.show()
 
 
-def estimate_input(sys, measurements, bs, times, lam=0.1, use_zero_init=True, use_lasso=False, use_virtual_sensor=False):
+def estimate_input(sys, measurements, bs, times, lam=0.1, use_zero_init=True, use_lasso=False, use_elastic_net=False, use_trend_filter=False, use_virtual_sensor=False):
     dt = np.mean(np.diff(times))
     n = len(times)
     loop_len = int(n/bs)
 
     A, B, C, D = sys
     O, G, D2, L = get_data_equation_matrices(A, B, C, D, n, bs)
+
+    if use_trend_filter:
+        regul_matrix = D2
+    else:
+        regul_matrix = L
 
     if use_zero_init:
         x_init = np.zeros((O.shape[1], 1))
@@ -183,9 +205,11 @@ def estimate_input(sys, measurements, bs, times, lam=0.1, use_zero_init=True, us
         y = batch.reshape(-1,1)
 
         if use_lasso:
-            estimate, x_init = lasso_problem(y, O, G, D2, initial_state=x_init, lam=lam)
+            estimate, x_init = lasso_problem(y, O, G, regul_matrix, initial_state=x_init, lam=lam)
+        elif use_elastic_net:
+            estimate, x_init = elastic_net_problem(y, O, G, regul_matrix, initial_state=x_init, lam=lam)
         else:
-            estimate, x_init = tikhonov_problem(y, O, G, D2, initial_state=x_init, lam=lam)
+            estimate, x_init = tikhonov_problem(y, O, G, regul_matrix, initial_state=x_init, lam=lam)
 
         x_est = omat @ x_init + gmat @ estimate
         x_init = x_est[-A.shape[0]:,:]

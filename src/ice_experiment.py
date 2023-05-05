@@ -52,7 +52,8 @@ def ice_L_curve(times, dt, load, show_plot=False, pickle_data=False):
 
     if pickle_data:
         with open('estimates/ice_experiment_l_curve.pickle', 'wb') as handle:
-            pickle.dump([l_norm, residual_norm])
+            pickle.dump([l_norm, residual_norm], handle, protocol=pickle.HIGHEST_PROTOCOL)
+
 
 def ice_excitation_simulated(run_cvx=False, run_kf=False, run_l_curve=False, show_plot=False, pickle_results=False):
     times, meas_speeds, meas_torques, torques, motor, propeller = ice_excitation_data()
@@ -85,7 +86,7 @@ def ice_excitation_simulated(run_cvx=False, run_kf=False, run_l_curve=False, sho
         plt.legend()
 
         plt.subplot(212)
-        plt.plot(sim_times, U_ice[:,1], label='Loading motor setpoint', color='red')
+        plt.plot(sim_times, U_ice[:,1], label='Loading motor setpoint', color='blue')
         plt.xlabel('Time (s)')
         plt.ylabel('Torque (Nm)')
         plt.legend()

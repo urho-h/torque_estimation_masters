@@ -39,6 +39,9 @@ Thumbs.db
 # pickled files #
 *.pickle
 
+# TDMS files #
+*.tdms
+
 data/*
 !step
 !data.txt

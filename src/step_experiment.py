@@ -38,7 +38,24 @@ def get_testbench_state_space(dt):
     return A, B, C, D
 
 
-def step_experiment(run_cvx=False, run_kf=False, pickle_results=False):
+def step_L_curve(times, dt, load, show_plot=False, pickle_data=False):
+    A, B, C, D = get_testbench_state_space(dt)
+    sys = (A, B, C, D)
+
+    tout, yout, _ = dlsim((A, B, C, D, dt), u=load, t=times)
+    e3 = np.random.normal(0, .01, yout.shape)
+    y_noise = yout + e3
+
+    lambdas = [1e-5, 1e-4, 1e-3, 1e-2, 5e-2, 1e-1, 5e-1, 1, 10, 100]
+
+    l_norm, residual_norm = ie.L_curve(sys, y_noise, tout, lambdas, show_plot=True)
+
+    if pickle_data:
+        with open('estimates/step_experiment_l_curve.pickle', 'wb') as handle:
+            pickle.dump([l_norm, residual_norm], handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+def step_experiment(run_cvx=False, run_kf=False, run_l_curve=False, pickle_results=False):
     fs = 1000
     sim_times = np.arange(0, 20, 1/fs)
     dt = np.mean(np.diff(sim_times))
@@ -64,14 +81,17 @@ def step_experiment(run_cvx=False, run_kf=False, pickle_results=False):
         plt.legend()
 
         plt.subplot(212)
-        plt.plot(sim_times[:10000], U_step[10000:,1], label='Loading motor setpoint', color='red')
+        plt.plot(sim_times[:10000], U_step[10000:,1], label='Loading motor setpoint', color='blue')
         plt.xlabel('Time (s)')
         plt.ylabel('Torque (Nm)')
         plt.legend()
         plt.tight_layout()
 
         plt.savefig("step_setpoint.pdf")
-        plt.show()
+        plt.show(sim_times, dt, U_step, show_plot=True, pickle_data=True)
+
+    if run_l_curve:
+        step_L_curve(sim_times[:1000], dt, U_step[13000:14000], show_plot=True, pickle_data=True)
 
     A, B, C, D = get_testbench_state_space(dt)
     sys = (A, B, C, D)
@@ -101,7 +121,7 @@ def step_experiment(run_cvx=False, run_kf=False, pickle_results=False):
             step_meas[:,0:3],
             bs,
             step_to[:10000],
-            lam=0.001,
+            lam=1,
             use_virtual_sensor=vs
         )
 
@@ -133,7 +153,7 @@ def step_experiment(run_cvx=False, run_kf=False, pickle_results=False):
         )
 
     if pickle_results:
-        with open('estimates/step_experiment_lam0001.pickle', 'wb') as handle:
+        with open('estimates/step_experiment_lam1_lam0001.pickle', 'wb') as handle:
             pickle.dump(
                 [
                     sim_times,
@@ -349,7 +369,7 @@ def sinusoidal_experiment():
 
 
 if __name__ == "__main__":
-    step_experiment(run_cvx=True, run_kf=True, pickle_results=True)
+    step_experiment(run_cvx=False, run_kf=False, run_l_curve=False, pickle_results=False)
 
     # sparse_L_curve_test()
     # sparse_pareto_curve_test()

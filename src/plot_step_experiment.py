@@ -4,7 +4,7 @@ import pickle
 
 
 def plot_step_experiment(plot_kf_vs_tikh=False, plot_lasso_vs_tikh=False):
-    fname = 'estimates/step_experiment_lam0001.pickle'
+    fname = 'estimates/step_experiment_lam1_lam0001.pickle'
 
     with open(fname, 'rb') as handle:
         dataset = pickle.load(handle)
@@ -64,7 +64,7 @@ def plot_step_experiment(plot_kf_vs_tikh=False, plot_lasso_vs_tikh=False):
             ncol=3
         )
 
-        plt.savefig("step_experiment_kf_tikh_results.pdf")
+        # plt.savefig("step_experiment_kf_tikh_results.pdf")
         plt.show()
 
     if plot_lasso_vs_tikh:
@@ -100,7 +100,7 @@ def plot_step_experiment(plot_kf_vs_tikh=False, plot_lasso_vs_tikh=False):
         )
 
         plt.tight_layout()
-        plt.savefig("step_experiment_lasso_vs_tikh.pdf")
+        # plt.savefig("step_experiment_lasso_vs_tikh.pdf")
 
         plt.figure()
         plt.plot(times[:10000], propeller[10000:], label='Measurement')
@@ -114,9 +114,9 @@ def plot_step_experiment(plot_kf_vs_tikh=False, plot_lasso_vs_tikh=False):
         plt.legend()
 
         plt.tight_layout()
-        plt.savefig("step_experiment_lasso_zoom.pdf")
+        # plt.savefig("step_experiment_lasso_zoom.pdf")
         plt.show()
 
 
 if __name__ == "__main__":
-    plot_step_experiment(plot_kf_vs_tikh=True, plot_lasso_vs_tikh=False)
+    plot_step_experiment(plot_kf_vs_tikh=True, plot_lasso_vs_tikh=True)
