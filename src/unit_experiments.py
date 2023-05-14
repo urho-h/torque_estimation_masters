@@ -4,6 +4,7 @@ import scipy.linalg as LA
 from scipy.signal import lsim, dlsim, butter, lfilter
 import pickle
 from nptdms import TdmsFile
+import pandas as pd
 
 import testbench_MSSP as tb
 from convex_optimization import input_estimation as ie
@@ -19,19 +20,22 @@ plt.rcParams.update({
 
 
 def read_motor_tdms(fn, start, stop):
-    with TdmsFile.open(fn) as tdms_file:
-        group = tdms_file['Measurements']
-        time = group['Time'][start:-stop]
-        time = (time-time[0])*25e-9
+    # with TdmsFile.open(fn) as tdms_file:
+    #     group = tdms_file['Measurements']
+    #     time = group['Time'][start:-stop]
+    #     time = (time-time[0])*25e-9
 
-        all_channels = group.channels()
-        print(all_channels[1][:].shape)
+    #     all_channels = group.channels()
 
-        motor_speed = group['MotorVelocity'][start:-stop]
-        motor_setpoint = group['MotorTorqueSet'][start:-stop]
-        motor = group['MotorTorque'][:]
-        propeller_setpoint = group['PropellerTorqueSet'][start:-stop]
-        propeller = group['PropellerTorque'][:]#[start:-stop]
+    #     motor_speed = group['MotorVelocity'][start:-stop]
+    #     motor_setpoint = group['MotorTorqueSet'].as_dataframe()
+    #     motor = group['MotorTorque'][:]
+    #     propeller_setpoint = group['PropellerTorqueSet'][start:-stop]
+    #     propeller = group['PropellerTorque'][:]#[start:-stop]
+
+    tdms_file = TdmsFile(fn)
+    df = tdms_file.as_dataframe()
+    print(df.head())
 
     return time, motor_setpoint, motor, propeller_setpoint, propeller
 
@@ -245,7 +249,7 @@ def sinusoidal_excitation(sim_times, fs, bs, plot_input=False):
     return U_sin
 
 
-def input_and_state_estimation(load, sim_times, batch_size, lam_tikh, lam_lasso, run_cvx=False, run_elastic_net=False, run_kf=False, use_trend_filter=False, use_virtual_sensor=True, pickle_results=False, fname='dummy.pickle'):
+def input_and_state_estimation(load, meas, sim_times, batch_size, lam_tikh, lam_lasso, run_simulation=False, run_cvx=False, run_elastic_net=False, run_kf=False, use_trend_filter=False, use_virtual_sensor=True, plot_estimates=False, pickle_results=False, fname='dummy.pickle'):
     dt = np.mean(np.diff(sim_times))
     A, B, C, D = get_testbench_state_space(dt)
     sys = (A, B, C, D)
@@ -255,12 +259,13 @@ def input_and_state_estimation(load, sim_times, batch_size, lam_tikh, lam_lasso,
     C_mod[3,22+18] += 2e4
     D_mod = np.zeros((C_mod.shape[0], B.shape[1]))
 
-    tout, yout, _ = dlsim((A, B, C_mod, D_mod, dt), u=load, t=sim_times)
-    e3 = np.random.normal(0, .01, yout.shape)
-    y_noise = yout + e3
+    if run_simulation:
+        tout, yout, _ = dlsim((A, B, C_mod, D_mod, dt), u=load, t=sim_times)
+        e3 = np.random.normal(0, .01, yout.shape)
+        y_noise = yout + e3
+        meas = y_noise
 
-    n = len(tout)
-    meas = y_noise
+    n = len(sim_times)
     motor = load[:,0]
     propeller = load[:,-1]
 
@@ -269,7 +274,7 @@ def input_and_state_estimation(load, sim_times, batch_size, lam_tikh, lam_lasso,
             sys,
             meas[:,:3],
             batch_size,
-            tout,
+            sim_times,
             lam=lam_tikh,
             use_trend_filter=use_trend_filter,
             use_virtual_sensor=use_virtual_sensor
@@ -279,7 +284,7 @@ def input_and_state_estimation(load, sim_times, batch_size, lam_tikh, lam_lasso,
             sys,
             meas[:,:3],
             batch_size,
-            tout,
+            sim_times,
             lam=lam_lasso,
             use_zero_init=True,
             use_lasso=True,
@@ -287,10 +292,12 @@ def input_and_state_estimation(load, sim_times, batch_size, lam_tikh, lam_lasso,
             use_virtual_sensor=use_virtual_sensor
         )
 
-        ie.subplot_input_estimates(sim_times, motor, propeller, input_tikh, input_lasso, n, batch_size)
-
-        if use_virtual_sensor:
-            ie.plot_virtual_sensor(sim_times, yout[:,2:], states_tikh, states_lasso)
+        if plot_estimates:
+            ie.subplot_input_estimates(sim_times, motor, propeller, input_tikh, input_lasso, n, batch_size)
+            if run_simulation:
+                ie.plot_virtual_sensor(sim_times, yout[:,2:], states_tikh, states_lasso)
+            else:
+                ie.plot_virtual_sensor(sim_times, meas[:,2:], states_tikh, states_lasso)
 
     if run_elastic_net:
         input_net, states_net = ie.estimate_input(
@@ -329,8 +336,8 @@ def input_and_state_estimation(load, sim_times, batch_size, lam_tikh, lam_lasso,
                     meas,
                     states_tikh,
                     states_lasso,
-                    input_estimates_kf,
-                    torque_estimates_kf
+                    # input_estimates_kf,
+                    # torque_estimates_kf
                 ],
                 handle,
                 protocol=pickle.HIGHEST_PROTOCOL)
@@ -351,6 +358,15 @@ def simulation_experiment():
 
     load = ramp_load
 
+    if plot_input:
+        A, B, C, D = get_testbench_state_space(dt)
+        sys = (A, B, C, D)
+        y_data_eq = ie.data_eq_simulation(sys, sim_times, load[:batch_size], batch_size)
+        plt.plot(sim_times[:batch_size], y_data_eq[1::3], color='blue')
+        plt.ylabel('Torque (Nm)')
+        plt.xlabel('Time (s)')
+        plt.show()
+
     plot_l_curve = 0
     run_estimation = 1
 
@@ -367,10 +383,12 @@ def simulation_experiment():
     if run_estimation:
         input_and_state_estimation(
             load,
+            0,
             sim_times,
             batch_size,
             0.1,
             0.1,
+            run_simulation=True,
             run_cvx=True,
             run_elastic_net=False,
             run_kf=True,
@@ -381,36 +399,52 @@ def simulation_experiment():
         )
 
 
-if __name__ == "__main__":
-    start, stop = 10000, 90000
+def measurements_experiment():
+    start, stop = 110000, 190000
 
-    motor_filename = "../data/IceExcitation_1000-2000_1_motor.tdms"
-    time_motor, motor_setpoint, motor, propeller_setpoint, propeller = read_motor_tdms(
-        motor_filename,
-        start,
-        stop
-    )
+    # TODO: TDMS data gets possibly corrupted when copying from cloud
+    # motor_filename = "../data/ramp_0_motor.tdms"
+    # time_motor, motor_setpoint, motor, propeller_setpoint, propeller = read_motor_tdms(
+    #     motor_filename,
+    #     start,
+    #     stop
+    # )
 
-    sensor_filename = "../data/ramp_0.tdms"
-    time, speed1, speed2, torque1, torque2 = read_sensor_tdms(sensor_filename, start, stop)
+    # sensor_filename = "../data/impuls_1000-2000_rpm.csv_0.tdms"
+    # time, speed1, speed2, torque1, torque2 = read_sensor_tdms(sensor_filename, start, stop)
+    # measurements = np.vstack((speed1, speed2, torque1, torque2)).T
 
-    plt.figure()
-    plt.plot(time, speed1)
+    sensor_data = np.loadtxt("../data/impulse_sensor.csv", delimiter=",")
+    time = sensor_data[:,0]
 
+    plt.plot(time, sensor_data[:,3])
+    plt.show()
+    plt.plot(time, sensor_data[:,1])
     plt.show()
 
-    # TODO: do for measured data
+    measurements = sensor_data[:,1:]
+
+    load = np.zeros((len(time), 2))
+
     input_and_state_estimation(
         load,
-        sim_times,
+        measurements,
+        time[:measurements.shape[0]],
         500,
         0.1,
         0.1,
         run_cvx=True,
         run_elastic_net=False,
-        run_kf=True,
+        run_kf=False,
         use_trend_filter=True,
         use_virtual_sensor=True,
         pickle_results=True,
-        fname='estimates/ramp_experiment_lam01_trend.pickle'
+        fname='estimates/impulse_experiment_lam01_trend_measured_new.pickle'
     )
+
+
+if __name__ == "__main__":
+    # simulation_experiment()
+    measurements_experiment()
+
+    # TODO: impulse test [10000:90000] looks good in tela kansio, some error happens when copying data a local folder

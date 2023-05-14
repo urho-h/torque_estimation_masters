@@ -175,6 +175,21 @@ def pareto_curve(sys, measurements, times, lambdas, use_zero_init=True):
     plt.show()
 
 
+def data_eq_simulation(sys, times, load, bs):
+    dt = np.mean(np.diff(times))
+    n = len(times)
+
+    A, B, C, D = sys
+    # omat = de.O(A, C, bs)
+    gmat = de.gamma(A, B, C, bs)
+
+    u = load.T.reshape(-1,1)
+    print(u.shape)
+    print(gmat.shape)
+
+    return gmat @ u
+
+
 def estimate_input(sys, measurements, bs, times, lam=0.1, use_zero_init=True, use_lasso=False, use_elastic_net=False, use_trend_filter=False, use_virtual_sensor=False):
     dt = np.mean(np.diff(times))
     n = len(times)
@@ -244,29 +259,31 @@ def subplot_input_estimates(time, tau_motor, tau_propeller, tikh_estimates, lass
     loop_len = int(n/bs)
     ax1 = plt.subplot(211)
     for i in range(loop_len):
-        plt.plot(time[i*bs:(i+1)*bs], tau_motor[i*bs:(i+1)*bs], linestyle='solid', color='C0')
-        plt.plot(time[i*bs:(i+1)*bs], tikh_estimates[i][::2], linestyle='dotted', color='C1')
-        plt.plot(time[i*bs:(i+1)*bs], lasso_estimates[i][::2], linestyle='dashed', color='C2')
+        plt.plot(time[i*bs:(i+1)*bs], tau_motor[i*bs:(i+1)*bs], linestyle='solid', color='blue')
+        plt.plot(time[i*bs:(i+1)*bs], tikh_estimates[i][::2], linestyle='solid', color='red')
+        plt.plot(time[i*bs:(i+1)*bs], lasso_estimates[i][::2], linestyle='solid', color='red')
 
-    plt.legend(('Motor side input', 'Tikhonov', '$\ell_1$'))
+    plt.legend(('Motor side input', 'H-P trend', '$\ell_1$ trend'))
+    plt.legend(('Motor side input', '$\ell_1$ trend'))
     plt.ylabel('Torque (Nm)')
+    plt.xlabel('Time (s)')
     # plt.xlim(0.1, 10)
     # plt.ylim(-3, 3)
     plt.grid()
-    plt.tick_params('x', labelbottom=False)
+    # plt.tick_params('x', labelbottom=False)
 
     ax2 = plt.subplot(212)
     for i in range(loop_len):
         plt.plot(time[i*bs:(i+1)*bs], tau_propeller[i*bs:(i+1)*bs], linestyle='solid', color='C0')
-        plt.plot(time[i*bs:(i+1)*bs], tikh_estimates[i][1::2], linestyle='dotted', color='C1')
-        plt.plot(time[i*bs:(i+1)*bs], lasso_estimates[i][1::2], linestyle='dashed', color='C2')
+        plt.plot(time[i*bs:(i+1)*bs], tikh_estimates[i][1::2], linestyle='solid', color='C1')
+        plt.plot(time[i*bs:(i+1)*bs], lasso_estimates[i][1::2], linestyle='solid', color='C2')
 
     plt.xlabel('Time (s)')
     plt.ylabel('Torque (Nm)')
     # plt.xlim(0.1, 10)
     # plt.ylim(-6, 4)
     plt.grid()
-    # plt.savefig("step_input_estimate.pdf")
+    # plt.savefig("ramp_input_estimate.pdf")
 
     plt.show()
 
@@ -300,16 +317,16 @@ def plot_input_estimates(time, tau_motor, tau_propeller, tikh_estimates, lasso_e
 
 def plot_virtual_sensor(times, torques, yout_tikh, yout_lasso):
     plt.figure()
-    plt.plot(times[100:], torques[100:,-2], label='Measured', linestyle='solid', color='C0')
-    plt.plot(times[100:], yout_tikh[100:,-2], label='Tikhonov estimate', linestyle='dotted', color='C1')
-    plt.plot(times[100:], yout_lasso[100:,-2], label='LASSO estimate', alpha=0.5, linestyle='dashed', color='C2')
+    plt.plot(times[100:], torques[100:,-2], label='Measured', linestyle='solid', color='blue')
+    plt.plot(times[100:], yout_tikh[100:,-2], label='Tikhonov estimate', linestyle='solid', color='red')
+    plt.plot(times[100:], yout_lasso[100:,-2], label='LASSO estimate', alpha=0.5, linestyle='solid', color='green')
     plt.legend()
     plt.title('Torque transducer 1')
 
     plt.figure(figsize=(12,4))
-    plt.plot(times[100:], torques[100:,-1], label='Measured torque', linestyle='solid', color='C0')
-    plt.plot(times[100:], yout_tikh[100:,-1], label='Tikhonov estimate', linestyle='dotted', color='C1')
-    plt.plot(times[100:], yout_lasso[100:,-1], label='LASSO estimate', alpha=0.5, linestyle='dashed', color='C2')
+    plt.plot(times[100:], torques[100:,-1], label='Measured torque', linestyle='solid', color='blue')
+    plt.plot(times[100:], yout_tikh[100:,-1], label='H-P trend', linestyle='solid', color='red')
+    plt.plot(times[100:], yout_lasso[100:,-1], label='$\ell_1$ trend', alpha=0.5, linestyle='solid', color='green')
     plt.legend()
     plt.title('Torque transducer 2')
     plt.grid()
@@ -318,6 +335,6 @@ def plot_virtual_sensor(times, torques, yout_tikh, yout_lasso):
     # plt.xlim(6.5, 8)
     plt.ylabel('Torque (Nm)')
     plt.xlabel('Time (s)')
-    # plt.savefig("step_torque_transducer.pdf")
+    # plt.savefig("ramp_torque_transducer.pdf")
 
     plt.show()
