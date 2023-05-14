@@ -253,3 +253,88 @@ def estimate_input(sys, measurements, bs, times, lam=0.1, use_zero_init=True, us
         )
 
     return input_estimates, yout_ests
+
+
+def subplot_input_estimates(time, tau_motor, tau_propeller, tikh_estimates, lasso_estimates, n, bs):
+    loop_len = int(n/bs)
+    ax1 = plt.subplot(211)
+    for i in range(loop_len):
+        plt.plot(time[i*bs:(i+1)*bs], tau_motor[i*bs:(i+1)*bs], linestyle='solid', color='blue')
+        plt.plot(time[i*bs:(i+1)*bs], tikh_estimates[i][::2], linestyle='solid', color='red')
+        plt.plot(time[i*bs:(i+1)*bs], lasso_estimates[i][::2], linestyle='solid', color='red')
+
+    plt.legend(('Motor side input', 'H-P trend', '$\ell_1$ trend'))
+    plt.legend(('Motor side input', '$\ell_1$ trend'))
+    plt.ylabel('Torque (Nm)')
+    plt.xlabel('Time (s)')
+    # plt.xlim(0.1, 10)
+    # plt.ylim(-3, 3)
+    plt.grid()
+    # plt.tick_params('x', labelbottom=False)
+
+    ax2 = plt.subplot(212)
+    for i in range(loop_len):
+        plt.plot(time[i*bs:(i+1)*bs], tau_propeller[i*bs:(i+1)*bs], linestyle='solid', color='C0')
+        plt.plot(time[i*bs:(i+1)*bs], tikh_estimates[i][1::2], linestyle='solid', color='C1')
+        plt.plot(time[i*bs:(i+1)*bs], lasso_estimates[i][1::2], linestyle='solid', color='C2')
+
+    plt.xlabel('Time (s)')
+    plt.ylabel('Torque (Nm)')
+    # plt.xlim(0.1, 10)
+    # plt.ylim(-6, 4)
+    plt.grid()
+    # plt.savefig("ramp_input_estimate.pdf")
+
+    plt.show()
+
+
+def plot_input_estimates(time, tau_motor, tau_propeller, tikh_estimates, lasso_estimates, n, bs):
+    loop_len = int(n/bs)
+    plt.figure()
+    for i in range(loop_len):
+        plt.plot(time[i*bs:(i+1)*bs], tau_motor[i*bs:(i+1)*bs], linestyle='solid', color='black')
+        plt.plot(time[i*bs:(i+1)*bs], tikh_estimates[i][::2], linestyle='dotted', color='red')
+        plt.plot(time[i*bs:(i+1)*bs], lasso_estimates[i][::2], linestyle='dashed', alpha=0.3, color='blue')
+
+    plt.legend(('known input', 'Tikhonov estimate', 'LASSO estimate'))
+    plt.xlabel('Time (s)')
+    plt.ylabel('Torque (Nm)')
+    plt.title('Motor side input estimates (H-P trend filtering)')
+
+    plt.figure()
+    for i in range(loop_len):
+        plt.plot(time[i*bs:(i+1)*bs], tau_propeller[i*bs:(i+1)*bs], linestyle='solid', color='black')
+        plt.plot(time[i*bs:(i+1)*bs], tikh_estimates[i][1::2], linestyle='dotted', color='red')
+        plt.plot(time[i*bs:(i+1)*bs], lasso_estimates[i][1::2], linestyle='dashed', alpha=0.3, color='blue')
+
+    plt.legend(('known input', 'Tikhonov estimate', 'LASSO estimate'))
+    plt.xlabel('Time (s)')
+    plt.ylabel('Torque (Nm)')
+    plt.title('Propeller side input estimates (H-P trend filtering)')
+
+    plt.show()
+
+
+def plot_virtual_sensor(times, torques, yout_tikh, yout_lasso):
+    plt.figure()
+    plt.plot(times[100:], torques[100:,-2], label='Measured', linestyle='solid', color='blue')
+    plt.plot(times[100:], yout_tikh[100:,-2], label='Tikhonov estimate', linestyle='solid', color='red')
+    plt.plot(times[100:], yout_lasso[100:,-2], label='LASSO estimate', alpha=0.5, linestyle='solid', color='green')
+    plt.legend()
+    plt.title('Torque transducer 1')
+
+    plt.figure(figsize=(12,4))
+    plt.plot(times[100:], torques[100:,-1], label='Measured torque', linestyle='solid', color='blue')
+    plt.plot(times[100:], yout_tikh[100:,-1], label='H-P trend', linestyle='solid', color='red')
+    plt.plot(times[100:], yout_lasso[100:,-1], label='$\ell_1$ trend', alpha=0.5, linestyle='solid', color='green')
+    plt.legend()
+    plt.title('Torque transducer 2')
+    plt.grid()
+
+    # plt.ylim(0, 25)
+    # plt.xlim(6.5, 8)
+    plt.ylabel('Torque (Nm)')
+    plt.xlabel('Time (s)')
+    # plt.savefig("ramp_torque_transducer.pdf")
+
+    plt.show()

@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def O(A, C, n):
     '''
     Create the extended observability matrix used in the data equation.
@@ -26,6 +27,7 @@ def O(A, C, n):
         O = np.vstack((O, C @ A_power))
 
     return O
+
 
 def gamma(A, B, C, n):
     '''
@@ -95,6 +97,7 @@ def gamma(A, B, C, n):
         current_column += 1
 
     return gamma
+
 
 def second_difference_matrix(n, m):
     D2 = np.eye(n*m) - 2*np.eye(n*m, k=2) + np.eye(n*m, k=4)

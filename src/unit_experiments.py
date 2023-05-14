@@ -402,18 +402,6 @@ def simulation_experiment():
 def measurements_experiment():
     start, stop = 110000, 190000
 
-    # TODO: TDMS data gets possibly corrupted when copying from cloud
-    # motor_filename = "../data/ramp_0_motor.tdms"
-    # time_motor, motor_setpoint, motor, propeller_setpoint, propeller = read_motor_tdms(
-    #     motor_filename,
-    #     start,
-    #     stop
-    # )
-
-    # sensor_filename = "../data/impuls_1000-2000_rpm.csv_0.tdms"
-    # time, speed1, speed2, torque1, torque2 = read_sensor_tdms(sensor_filename, start, stop)
-    # measurements = np.vstack((speed1, speed2, torque1, torque2)).T
-
     sensor_data = np.loadtxt("../data/impulse_sensor.csv", delimiter=",")
     time = sensor_data[:,0]
 
