@@ -9,7 +9,7 @@ def new_parameters():
                          2.00e-6,
                          7.81e-3,
                          2.00e-6,
-                         3.17e-6,
+                         (3.17e-6 - 7800*(np.pi*(0.006**4)/32)*0.342/6) + 7800*(np.pi*(0.008**4)/32)*0.342/6,
                          5.01e-5,
                          6.50e-6,
                          5.65e-5,
@@ -32,7 +32,7 @@ def new_parameters():
                             90.00,
                             90.00,
                             90.00,
-                            3*30.13,
+                            80e9*(np.pi*(0.008**4)/32)/0.342,
                             4.19e4,
                             5.40e3,
                             4.19e4,
@@ -82,12 +82,12 @@ def new_parameters():
                                  0,
                                  0,
                                  0,
-                                 0.0031,
+                                 0.0038,
                                  0,
                                  0,
                                  0,
                                  0,
-                                 0.0031,
+                                 0.0038,
                                  0,
                                  0,
                                  0,
@@ -196,7 +196,7 @@ def parameters():
     return inertias, stiffnesses, damping, external_damping, gear_ratios
 
 
-def state_space_matrices(inertia, stiff, damp, damp_ext, ratios):
+def state_space_matrices(inertia, stiff, damp, damp_ext, ratios, full_B=False):
     cn = damp*ratios
     cn2 = damp*ratios**2
     cn2 = np.hstack((cn2, 0))
@@ -218,9 +218,14 @@ def state_space_matrices(inertia, stiff, damp, damp_ext, ratios):
 
     A = np.vstack((np.hstack((A11, A12)), np.hstack((A23, np.zeros((A23.shape[0], A23.shape[1]-1))))))
 
-    B = np.zeros((A.shape[0], 2))
-    B[0,0] += 1/inertia[0]
-    B[len(inertia)-1, 1] -= 1/inertia[-1]
+    if full_B:
+        B = np.zeros(A.shape)
+        for i in range(len(inertia)):
+            B[i,i] += 1/inertia[i]
+    else:
+        B = np.zeros((A.shape[0], 2))
+        B[0,0] += 1/inertia[0]
+        B[len(inertia)-1, 1] -= 1/inertia[-1]
 
     C = np.zeros((3, A.shape[0]))
     C[0,6] += 1
