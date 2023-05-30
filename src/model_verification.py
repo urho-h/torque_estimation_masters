@@ -12,8 +12,8 @@ plt.style.use('science')
 plt.rcParams.update({
     "text.usetex": True,
     "font.family": "Computer Modern",
-    "font.size": 12,
-    "figure.figsize": (6,4),
+    "font.size": 11,
+    "figure.figsize": (6,6),
 })
 
 
@@ -80,33 +80,39 @@ def plot_unit_setpoint():
     cfd_data = np.loadtxt("../data/masters_data/raw_data/CFD_motor.csv", delimiter=",", skiprows=1)
 
     plt.subplot(321)
-    plt.title("a)")
+    plt.title("a)", loc='left')
     plt.plot(impulse_data[:-79000,0], impulse_data[69000:-10000,5]*8, label="Loading\n motor\n setpoint", color='blue')
     plt.ylabel("Torque (Nm)")
+    plt.xlabel("Time (s)")
 
     plt.subplot(322)
-    plt.title("b)")
+    plt.title("b)", loc='left')
     plt.plot(sin_data[:200,0], sin_data[100000:100200,5]*8, label="Loading\n motor\n setpoint", color='blue')
+    plt.ylabel("Torque (Nm)")
+    plt.xlabel("Time (s)")
 
     plt.subplot(323)
-    plt.title("c)")
+    plt.title("c)", loc='left')
     plt.plot(t_step, U_step[:,1]*8, label="Loading\n motor\n setpoint", color='blue')
     plt.ylabel("Torque (Nm)")
+    plt.xlabel("Time (s)")
 
     plt.subplot(324)
-    plt.title("d)")
+    plt.title("d)", loc='left')
     plt.plot(ramp_data[:,0], ramp_data[:,3]*(2*np.pi/60), label="Loading\n motor\n setpoint", color='blue')
     plt.ylabel("Speed (rad/s)")
+    plt.xlabel("Time (s)")
 
     plt.subplot(325)
-    plt.title("e)")
+    plt.title("e)", loc='left')
     plt.plot(ice_data[:1500,0], ice_data[58000:59500,5]*8, label="Loading\n motor\n setpoint", color='blue')
     plt.ylabel("Torque (Nm)")
     plt.xlabel("Time (s)")
 
     plt.subplot(326)
-    plt.title("f)")
+    plt.title("f)", loc='left')
     plt.plot(cfd_data[:40000,0], cfd_data[253500:293500,5]*8, label="Loading\n motor\n setpoint", color='blue')
+    plt.ylabel("Torque (Nm)")
     plt.xlabel("Time (s)")
 
     plt.tight_layout()
@@ -116,18 +122,22 @@ def plot_unit_setpoint():
 
 def simulation_and_process_data():
     plot_sensor = True
-    plot_motor = True
+    plot_motor = False
     check_sync = False
     run_simulation = False
     save_processed_data = False
 
-    s, e = 0, -1 # full data
-    s, e = 0, -235000 # data for single impulse
-    # s, e = 0, -200000 # impulse loads 1000 rpm
-    # s, e = 10000, -90000 # cut bad data from ramp dataset
-    s, e = 300000, -350000 # sinusoidal load steady state
-    # s, e = 200000, -1 # data for impulse loads 2000 rpm
-    # s, e = 170000, -1 # data for ice loads 2000 rpm
+    s, e = 0, -1 # full data, sensor data slicing, s=start e=end
+    # s, e = 4500, -5000 # PRBS 2000 rpm
+    # s, e = 42000, -7000 # impulse 2000 rpm, single impulse
+    # s, e = 69000, -20000 # step 2000 rpm, single step
+    # s, e = 300000, -370000 # sinusoidal load steady state 2000 rpm
+    # s, e = 9000, -190000 # ramp dataset
+    # s, e = 9000, -10000 # ice dataset
+    # s, e = 900, -2000 # CFD dataset
+    # s, e = 168000, -3000 # ice 2000 rpm dataset
+    s, e = 774000, -210000 # CFD 2000 rpm dataset
+    start = int(s/3) # start point for motor data, 1/3 of sensor data start
 
     sensor_data = np.loadtxt(
         "../data/masters_data/raw_data/CFD_sensor.csv",
@@ -135,8 +145,21 @@ def simulation_and_process_data():
         skiprows=1
     )
 
+    motor_data = np.loadtxt(
+        "../data/masters_data/raw_data/CFD_motor.csv",
+        delimiter=",",
+        skiprows=1
+    )
+
     time_raw = sensor_data[s:e,0]*25e-9
     time = time_raw-time_raw[0]
+
+    if np.any(time < 0):
+        time = np.linspace(
+            0,
+            len(sensor_data[s:e,0])/3012,
+            len(sensor_data[s:e,0])
+        )
 
     enc1_angle = (sensor_data[s:e,1])*(2*np.pi/20000)
     enc1_time_raw = sensor_data[s:e,2]*25e-9
@@ -148,7 +171,7 @@ def simulation_and_process_data():
     speed1 = np.gradient(enc1_angle, enc1_time)
     speed2 = np.gradient(enc2_angle, enc2_time)
 
-    # TODO: torque sensor data acquisition got switched up
+    # DONE: torque sensor data acquisition got switched up
     torque2 = sensor_data[s:e,-2]*10 # torque1 in the dataset
     torque1 = sensor_data[s:e,-1]*4 # torque2 in the dataset
 
@@ -158,20 +181,20 @@ def simulation_and_process_data():
     torque1 = low_pass_filter(torque1, 500, 3012)
     torque2 = low_pass_filter(torque2, 500, 3012)
 
-    time = time[:-2000]
-    speed1 = speed1[2000:]
-    speed2 = speed2[2000:]
-    torque1 = torque1[2000:]
-    torque2 = torque2[2000:]
+    # cut off anomality in data, might be caused by the lowpass filter
+    time = time[:-1800]
+    speed1 = speed1[1800:]
+    speed2 = speed2[1800:]
+    torque1 = torque1[1800:]
+    torque2 = torque2[1800:]
 
     if plot_sensor:
         plt.figure()
         plt.plot(time, speed1)
         plt.figure()
         plt.plot(time, speed2)
-        plt.figure("torque1")
+        plt.figure("torques")
         plt.plot(time, torque1)
-        plt.figure("torque2")
         plt.plot(time, torque2)
 
         plt.show()
@@ -179,10 +202,10 @@ def simulation_and_process_data():
     measurements = np.vstack((time[::3], speed1[::3], speed2[::3], torque1[::3], torque2[::3])).T
     # measurements = np.vstack((time, speed1, speed2, torque1, torque2)).T
 
-    motor_data = np.loadtxt("../data/masters_data/raw_data/CFD_motor.csv", delimiter=",", skiprows=1)
-
-    start = 100000
-    time_motor = motor_data[:len(time[::3]),0]
+    start += 600
+    time_motor = motor_data[:,0]
+    time_motor = time_motor-time_motor[0]
+    time_motor = time_motor[:len(time[::3])]
     motor_set = motor_data[start:len(time[::3])+start,1]
     motor = motor_data[start:len(time[::3])+start,2]
     propeller_set = motor_data[start:len(time[::3])+start,5]*8
@@ -223,21 +246,24 @@ def simulation_and_process_data():
 
     if save_processed_data:
         np.savetxt(
-            "../data/masters_data/processed_data/CFD_sensor.csv",
+            "../data/masters_data/processed_data/CFD_2000_sensor.csv",
             measurements,
             delimiter=","
         )
         np.savetxt(
-            "../data/masters_data/processed_data/CFD_motor.csv",
+            "../data/masters_data/processed_data/CFD_2000_motor.csv",
             motor_measurements,
             delimiter=","
         )
 
 
 if __name__ == "__main__":
-    # simulation_and_process_data()
-    plot_unit_setpoint()
+    simulation_and_process_data()
+    # plot_unit_setpoint()
 
-    # TODO: 2-by-2 plot of motor setpoint data
-    # TODO: 2-by-2 plot of L-curves for one excitation case (maybe sinusoidal)
-    # TODO: 2-by-2 plot of unit test estimates
+    # DONE: impulse data
+    # DONE: sinusoidal data
+    # DONE: step data
+    # DONE: ramp data
+    # DONE: ice data
+    # DONE: CFD data

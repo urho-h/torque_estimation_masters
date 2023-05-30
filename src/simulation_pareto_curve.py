@@ -15,7 +15,7 @@ plt.style.use('science')
 plt.rcParams.update({
     "text.usetex": True,
     "font.family": "Computer Modern",
-    "font.size": 12,
+    "font.size": 11,
     "figure.figsize": (6,4),
 })
 
@@ -371,37 +371,46 @@ def input_and_state_estimation(load, meas, sim_times, batch_size, lam_tikh, lam_
         )
 
 
-def plot_unit_test_loads():
+def get_unit_test_loads(plot_input=False):
     fs = 1000
     sim_times = np.arange(0, 10, 1/fs)
     dt = np.mean(np.diff(sim_times))
     batch_size = 500
 
-    plot_input = False
     impulse_load = impulse_excitation(sim_times, fs, batch_size, plot_input=plot_input)
     sinusoidal_load = sinusoidal_excitation(sim_times, fs, batch_size, plot_input=plot_input)
     step_load = step_excitation(sim_times, fs, batch_size, plot_input=plot_input)
     ramp_load = ramp_excitation(sim_times, fs, batch_size, plot_input=plot_input)
 
+    return sim_times, impulse_load, sinusoidal_load, step_load, ramp_load
+
+
+def plot_unit_test_loads():
+    sim_times, impulse_load, sinusoidal_load, step_load, ramp_load = get_unit_test_loads()
+
     plt.subplot(221)
-    plt.title("a)")
+    plt.title("a)", loc='left')
     plt.plot(sim_times[:200], impulse_load[3125:3325,1], color='blue')
+    plt.xlabel("Time (s)")
     plt.ylabel("Torque (Nm)")
 
     plt.subplot(222)
-    plt.title("b)")
+    plt.title("b)", loc='left')
     plt.plot(sim_times[:400], sinusoidal_load[3000:3400,1], color='blue')
+    plt.xlabel("Time (s)")
+    plt.ylabel("Torque (Nm)")
 
     plt.subplot(223)
-    plt.title("c)")
+    plt.title("c)", loc='left')
     plt.plot(sim_times[:2000], step_load[2200:4200,1], color='blue')
     plt.xlabel("Time (s)")
     plt.ylabel("Torque (Nm)")
 
     plt.subplot(224)
-    plt.title("d)")
-    plt.plot(sim_times[:-600], ramp_load[:-600,0], color='blue')
+    plt.title("d)", loc='left')
+    plt.plot(sim_times[:int(len(sim_times)/2)], ramp_load[:int(len(sim_times)/2),0], color='blue')
     plt.xlabel("Time (s)")
+    plt.ylabel("Torque (Nm)")
 
     plt.tight_layout()
     # plt.savefig("../figures/l_curve_setpoints.pdf")
@@ -418,11 +427,9 @@ def simulation_experiment(run_estimation=False, plot_l_curve=False, plot_elastic
     step_load = step_excitation(sim_times, fs, batch_size, plot_input=plot_input)
     impulse_load = impulse_excitation(sim_times, fs, batch_size, plot_input=plot_input)
     sinusoidal_load = sinusoidal_excitation(sim_times, fs, batch_size, plot_input=plot_input)
-    # ice_load = ice_excitation_simulated(sim_times, fs, batch_size, plot_input=plot_input)
-    ice_motor = np.loadtxt("../data/masters_data/processed_data/ice_motor.csv", delimiter=",", skiprows=1)
-    ice_load = np.vstack((ice_motor[:,1], ice_motor[:,3])).T
+    ice_load = ice_excitation_simulated(sim_times, fs, batch_size, plot_input=plot_input)
 
-    load = ice_load
+    load = impulse_load
 
     if plot_input:
         A, B, C, D = get_testbench_state_space(dt)
@@ -434,25 +441,26 @@ def simulation_experiment(run_estimation=False, plot_l_curve=False, plot_elastic
         plt.show()
 
     if plot_l_curve:
-        s = 2400
-        # plt.plot(sim_times[:batch_size], load[s:s+batch_size, 0], label='Motor load', color='blue')
-        # plt.plot(sim_times[:batch_size], load[s:s+batch_size, 1], label='Propeller load', color='red')
-        # plt.legend()
-        # plt.xlabel('Time (s)')
-        # plt.ylabel('Torque (Nm)')
-        # plt.tight_layout()
-        # plt.show()
+        # s = 2400 # ramp
+        s = 3000 # rest
+        plt.plot(sim_times[:batch_size], load[s:s+batch_size, 0], label='Motor load', color='blue')
+        plt.plot(sim_times[:batch_size], load[s:s+batch_size, 1], label='Propeller load', color='red')
+        plt.legend()
+        plt.xlabel('Time (s)')
+        plt.ylabel('Torque (Nm)')
+        plt.tight_layout()
+        plt.show()
 
         calculate_L_curve(
             sim_times[:batch_size],
             dt,
             load[s:s+batch_size],
-            lambdas=[1e-7, 1e-5, 1e-4, 1e-3, 5e-3, 1e-2, 5e-2, 1e-1, 0.25,  0.5, 1, 5, 10, 100, 1000],
+            lambdas=[1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1, 10, 100, 1000, 10000, 100000],
             use_l1=False,
-            use_trend=False,
+            use_trend=True,
             show_plot=True,
             pickle_data=True,
-            fname='estimates/pareto_curves/ice_experiment_tikh_curve'
+            fname='estimates/pareto_curves_new/impulse_experiment_hp_trend_curve'
         )
 
     if plot_elastic_curve:

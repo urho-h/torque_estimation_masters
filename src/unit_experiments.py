@@ -49,7 +49,7 @@ def input_and_state_estimation(load, meas, sim_times, batch_size, lam_tikh, lam_
             sim_times,
             lam=lam_tikh,
             use_trend_filter=use_trend_filter,
-            pickle_data=True,
+            pickle_data=pickle_results,
             fn=fname
         )
 
@@ -64,7 +64,7 @@ def input_and_state_estimation(load, meas, sim_times, batch_size, lam_tikh, lam_
             use_zero_init=True,
             use_lasso=True,
             use_trend_filter=use_trend_filter,
-            pickle_data=True,
+            pickle_data=pickle_results,
             fn=fname
         )
 
@@ -81,7 +81,7 @@ def input_and_state_estimation(load, meas, sim_times, batch_size, lam_tikh, lam_
             use_lasso=False,
             use_elastic_net=True,
             use_trend_filter=use_trend_filter,
-            pickle_data=True,
+            pickle_data=pickle_results,
             fn=fname
         )
 
@@ -96,28 +96,10 @@ def input_and_state_estimation(load, meas, sim_times, batch_size, lam_tikh, lam_
             np.mean(load[:,0])
         )
 
-    if pickle_results:
-        with open(fname, 'wb') as handle:
-            pickle.dump(
-                [
-                    sim_times,
-                    load[:,0],
-                    load[:,1],
-                    input_tikh,
-                    input_lasso,
-                    meas,
-                    states_tikh,
-                    states_lasso,
-                    input_estimates_kf,
-                    torque_estimates_kf
-                ],
-                handle,
-                protocol=pickle.HIGHEST_PROTOCOL)
-
 
 def measurements_experiment(run_input_estimation=False):
-    sensor_data = np.loadtxt("../data/masters_data/processed_data/sin_148_sensor.csv", delimiter=",")
-    motor_data = np.loadtxt("../data/masters_data/processed_data/sin_148_motor.csv", delimiter=",")
+    sensor_data = np.loadtxt("../data/masters_data/processed_data/CFD_2000_sensor.csv", delimiter=",")
+    motor_data = np.loadtxt("../data/masters_data/processed_data/CFD_2000_motor.csv", delimiter=",")
     time = sensor_data[:,0]
 
     measurements = sensor_data[:,1:]
@@ -130,17 +112,22 @@ def measurements_experiment(run_input_estimation=False):
             measurements,
             time[:measurements.shape[0]],
             500,
-            0.5,
-            1,
+            0.01,
+            10,
             run_tikh=False,
             run_lasso=True,
-            run_elastic_net=False,
-            run_kf=False,
             use_trend_filter=True,
-            pickle_results=False,
-            fname='estimates/sin_test_short/sin_experiment_l1_trend_lam05_'
+            pickle_results=True,
+            fname='estimates/CFD_2000_experiment/l1_trend_lam10_'
         )
 
 
 if __name__ == "__main__":
     measurements_experiment(run_input_estimation=True)
+
+    # DONE: impulse excitation
+    # DONE: sinusoidal excitation
+    # DONE: step excitation
+    # DONE: ramp excitation
+    # DONE: ice excitation
+    # DONE: CFD excitation

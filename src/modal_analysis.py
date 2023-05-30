@@ -8,7 +8,7 @@ import testbench_MSSP as tb
 plt.rcParams.update({
     "text.usetex": True,
     "font.family": "Computer Modern",
-    "font.size": 12,
+    "font.size": 11,
 })
 
 
@@ -35,8 +35,16 @@ def modal_analysis(A, B):
     for i, v in enumerate(inds):
         eigenmodes[:, i] = vec[:, v]
 
+    # rigid body mode
+    # plt.figure()
+    # plt.scatter(np.arange(1, 22, 1), eigenmodes[:,0], label="$f_1$ = " + str(freqs[0].round(1)) + "Hz", color="black")
+
+    plt.figure()
     plt.subplot(311)
     plt.scatter(np.arange(1, 22, 1), eigenmodes[:,1], label="$f_1$ = " + str(freqs[1].round(1)) + "Hz", color="black")
+    plt.plot(np.arange(1, 13, 1), eigenmodes[:12,1], color="black")
+    plt.plot(np.arange(13, 18, 1), eigenmodes[12:17,1], color="black")
+    plt.plot(np.arange(18, 22, 1), eigenmodes[17:,1], color="black")
     plt.legend()
     plt.xticks(range(1, 22))
     plt.tick_params('y', labelleft=False, left=False)
@@ -44,19 +52,25 @@ def modal_analysis(A, B):
 
     plt.subplot(312)
     plt.scatter(np.arange(1, 22, 1), eigenmodes[:,2], label="$f_2$ = " + str(freqs[2].round(1)) + "Hz", color="black")
+    plt.plot(np.arange(1, 13, 1), eigenmodes[:12,2], color="black")
+    plt.plot(np.arange(13, 18, 1), eigenmodes[12:17,2], color="black")
+    plt.plot(np.arange(18, 22, 1), eigenmodes[17:,2], color="black")
     plt.legend()
     plt.xticks(range(1, 22))
     plt.tick_params('y', labelleft=False, left=False)
 
     plt.subplot(313)
     plt.scatter(np.arange(1, 22, 1), eigenmodes[:,3], label="$f_3$ = " + str(freqs[3].round(1)) + "Hz", color="black")
+    plt.plot(np.arange(1, 13, 1), eigenmodes[:12,3], color="black")
+    plt.plot(np.arange(13, 18, 1), eigenmodes[12:17,3], color="black")
+    plt.plot(np.arange(18, 22, 1), eigenmodes[17:,3], color="black")
     plt.legend()
     plt.xticks(range(1, 22))
     plt.tick_params('y', labelleft=False, left=False)
     plt.xlabel("Node number")
 
     plt.tight_layout()
-    # plt.savefig("../figures/mode_shapes.pdf")
+    plt.savefig("../figures/mode_shapes.pdf")
     plt.show()
 
 
@@ -74,12 +88,10 @@ def run_fft(time, torques):
 
 
 def plot_PRBS_result():
-    # motor_data = np.loadtxt("../data/masters_data/processed_data/PRBS_motor.csv", delimiter=",")
-    sensor_data = np.loadtxt("../data/masters_data/processed_data/PRBS_sensor.csv", delimiter=",")
-    # sensor_data = np.loadtxt("../data/masters_data/processed_data/ramp_sensor.csv", delimiter=",")
+    sensor_data = np.loadtxt("../data/masters_data/processed_data/2000rpm_PRBS_sensor.csv", delimiter=",")
 
     time = sensor_data[:-3000,0]
-    torque = sensor_data[3000:,-2]
+    torque = sensor_data[3000:,-1]
 
     f, P1 = run_fft(time, torque)
 
@@ -90,7 +102,7 @@ def plot_PRBS_result():
     plt.grid()
 
     plt.tight_layout()
-    # plt.savefig("../figures/PRBS_result.pdf")
+    # plt.savefig("../figures/2000rpm_PRBS_result.pdf")
     plt.show()
 
 
