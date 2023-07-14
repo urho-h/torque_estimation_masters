@@ -149,8 +149,11 @@ def L_curve(sys, measurements, times, lambdas, use_zero_init=True, use_l1=False,
 
     norm, res_norm = [], []
     for i in range(len(lambdas)):
-        norm.append(np.linalg.norm(y - G @ input_estimates[i]))
-        res_norm.append(np.linalg.norm(D2 @ input_estimates[i]))
+        res_norm.append(np.linalg.norm(y - G @ input_estimates[i]))
+        if use_l1:
+            norm.append(np.linalg.norm(regularization @ input_estimates[i], ord=1))
+        else:
+            norm.append(np.linalg.norm(regularization @ input_estimates[i]))
 
     return norm, res_norm
 
@@ -268,6 +271,52 @@ def estimate_input(sys, measurements, batch_size, overlap, times, lam=0.1, lam2=
         x_est = omat @ x_init + gmat @ estimate
 
         x_init = x_est[-A.shape[0]:,:]
+
+        input_estimates.append(estimate)
+
+        if pickle_data:
+            with open(fn + str(i) + ".pickle", 'wb') as handle:
+                pickle.dump([estimate, x_est], handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    return input_estimates
+
+
+def explicit_solution(sys, measurements, batch_size, overlap, times, lam=0.1, use_trend_filter=False, pickle_data=False, fn="input_estimates_"):
+
+    dt = np.mean(np.diff(times))
+    n = len(times)
+    bs = batch_size + 2*overlap
+    loop_len = int(n/batch_size)
+
+    A, B, C, D = sys
+    O, G, D2, L = get_data_equation_matrices(A, B, C, D, n, bs)
+
+    if use_trend_filter:
+        regul_matrix = D2
+    else:
+        regul_matrix = L
+
+    input_estimates = []
+
+    # for initial state estimation
+    C_full = np.eye(B.shape[0])
+    omat = de.O(A, C_full, bs)
+    gmat = de.gamma(A, B, C_full, bs)
+
+    H = np.hstack([omat, gamma])
+    M = np.vstack([np.zeros(regul_matrix.shape), regul_matrix])
+
+    for i in progressbar(range(loop_len), "Calculating estimates: ", loop_len):
+        if i == 0:
+            batch = measurements[:bs,:]
+        elif i == loop_len-1:
+            batch = np.zeros((bs, measurements.shape[1]))
+            # zero padding to finish estimation loop correctly
+        else:
+            batch = measurements[i*batch_size-overlap:(i+1)*batch_size+overlap,:]
+
+        y = batch.reshape(-1,1)
+        estimate = LA.inv(H.T @ H + lam*(M.T @ M)) @ H.T @ y
 
         input_estimates.append(estimate)
 

@@ -5,6 +5,7 @@ import pickle
 from scipy.signal import dlsim
 
 import testbench_MSSP as tb
+import simulation_pareto_curve as spc
 
 
 plt.style.use('science')
@@ -12,7 +13,7 @@ plt.rcParams.update({
     "text.usetex": True,
     "font.family": "Computer Modern",
     "font.size": 12,
-    "figure.figsize": (8,6),
+    "figure.figsize": (8,6), #(7,6)
 })
 
 
@@ -66,72 +67,161 @@ def get_states(fn, n_batches, case, sensor_data):
     return t_estimate, yout_ests[:-1,-1]
 
 
-def plot_maritime_estimates():
+def plot_ice_different_lambda():
     case = "ice_2000"
-    # n = 32
     n = 20
     sensor_data_ice = np.loadtxt("../data/masters_data/processed_data/" + case + "_sensor.csv", delimiter=",")
 
-    # tet, det = get_states("estimates/" + case + "_experiment/tikh_lam001_", n, case, sensor_data_ice)
-    # tel1, del1 = get_states("estimates/" + case + "_experiment/l1_lam1_", n, case, sensor_data_ice)
+    tehp_00001, dehp_00001 = get_states("estimates/" + case + "_experiment/hp_different_lambdas/hp_trend_lam00001_", n, case, sensor_data_ice)
+    tehp_001, dehp_001 = get_states("estimates/" + case + "_experiment/hp_different_lambdas/hp_trend_lam001_", n, case, sensor_data_ice)
+    tehp_01, dehp_01 = get_states("estimates/" + case + "_experiment/hp_trend_lam01_", n, case, sensor_data_ice)
+    tehp_10, dehp_10 = get_states("estimates/" + case + "_experiment/hp_different_lambdas/hp_trend_lam10_", n, case, sensor_data_ice)
+    tehp_100, dehp_100 = get_states("estimates/" + case + "_experiment/hp_different_lambdas/hp_trend_lam100_", n, case, sensor_data_ice)
+    tehp_1000, dehp_1000 = get_states("estimates/" + case + "_experiment/hp_different_lambdas/hp_trend_lam1000_", n, case, sensor_data_ice)
+
+    plt.figure()
+    plt.plot(sensor_data_ice[:,0], sensor_data_ice[:,-1], color='black', label='Measurement')
+    plt.plot(tehp_00001, dehp_00001, label='$\lambda$ = 0.0001')
+    plt.plot(tehp_001, dehp_001, label='$\lambda$ = 0.01')
+    plt.plot(tehp_01, dehp_01, label='$\lambda$ = 0.1')
+    plt.plot(tehp_10, dehp_10, label='$\lambda$ = 10')
+    plt.plot(tehp_100, dehp_100, label='$\lambda$ = 100')
+    plt.plot(tehp_1000, dehp_1000, label='$\lambda$ = 1000')
+    plt.xlim(4.375,4.435)
+    plt.ylim(2,24.5)
+    plt.legend()
+    plt.ylabel("Torque (Nm)")
+    plt.xlabel("Time (s)")
+    plt.savefig("../figures/ice_2000_diff_lambda.pdf")
+    plt.show()
+
+def plot_maritime_estimates():
+    case = "experiments_redone/ice"
+    # n = 32
+    n = 20
+    sensor_data_ice = np.loadtxt("../data/masters_data/processed_data/ice_2000_sensor.csv", delimiter=",")
+
+    tet, det = get_states("estimates/" + case + "_experiment/tikh_lam001_", n, case, sensor_data_ice)
+    tel1, del1 = get_states("estimates/" + case + "_experiment/l1_lam1_", n, case, sensor_data_ice)
     tehp, dehp = get_states("estimates/" + case + "_experiment/hp_trend_lam01_", n, case, sensor_data_ice)
     tel1t, del1t = get_states("estimates/" + case + "_experiment/l1_trend_lam1_", n, case, sensor_data_ice)
 
     plt.figure()
+    ax1 = plt.subplot(411)
+    ax1.plot(sensor_data_ice[:,0], sensor_data_ice[:,-1], color='black', label='Measurement')
+    ax1.plot(tet, det, color='red', linestyle='dashed', label='Tikhonov regularization')
+    ax1.plot([100,100], [100,100], color='blue', linestyle='dashed', label='$\ell_1$ regularization')
+    ax1.plot([100,100], [100,100], color='red', label='H-P trend filtering')
+    ax1.plot([100,100], [100,100], color='blue', label='$\ell_1$ trend filtering')
+    ax1.set_xlim(3.8,5)
+    ax1.set_ylim(2,24)
+    ax1.legend(
+        loc='upper center',
+        bbox_to_anchor=(0.5, 1.6),
+        fancybox=True,
+        shadow=True,
+        ncol=3
+    )
+    plt.ylabel("Torque (Nm)")
+    plt.xlabel("Time (s)")
+
+    plt.subplot(412)
     plt.plot(sensor_data_ice[:,0], sensor_data_ice[:,-1], color='black', label='Measurement')
-    # plt.plot(tet, det, color='dimgray', label='Tikhonov regularization')
-    # plt.plot(tel1, del1, color='dimgray', linestyle='dashed', label='$\ell_1$-regularization')
+    plt.plot(tel1, del1, color='blue', linestyle='dashed', label='$\ell_1$ regularization')
+    plt.xlim(3.8,5)
+    plt.ylim(2,24)
+    plt.ylabel("Torque (Nm)")
+    plt.xlabel("Time (s)")
+
+    plt.subplot(413)
+    plt.plot(sensor_data_ice[:,0], sensor_data_ice[:,-1], color='black', label='Measurement')
     plt.plot(tehp, dehp, color='red', label='H-P trend filtering')
-    # plt.plot(tel1t, del1t, color='blue', label='$\ell_1$ trend filtering')
+    plt.xlim(3.8,5)
+    plt.ylim(2,24)
+    plt.ylabel("Torque (Nm)")
+    plt.xlabel("Time (s)")
+
+    plt.subplot(414)
+    plt.plot(sensor_data_ice[:,0], sensor_data_ice[:,-1], color='black', label='Measurement')
+    plt.plot(tel1t, del1t, color='blue', label='$\ell_1$ trend filtering')
     # plt.xlim(7.4,8.7)
     plt.xlim(3.8,5)
     plt.ylim(2,24)
-    plt.legend()
     plt.ylabel("Torque (Nm)")
     plt.xlabel("Time (s)")
-    # plt.savefig("../figures/ice_2000_torque_estimate.pdf")
-    plt.show()
+    # plt.savefig("../figures/ice_2000_torque_estimate_all_subplots.pdf")
+    # plt.show()
 
-    case = "CFD_2000"
+    case = "experiments_redone/CFD"
     # n = 71
     n = 76
-    sensor_data_CFD = np.loadtxt("../data/masters_data/processed_data/" + case + "_sensor.csv", delimiter=",")
+    sensor_data_CFD = np.loadtxt("../data/masters_data/processed_data/CFD_2000_sensor.csv", delimiter=",")
 
-    # tet, det = get_states("estimates/" + case + "_experiment/tikh_lam001_", n, case, sensor_data_CFD)
-    # tel1, del1 = get_states("estimates/" + case + "_experiment/l1_lam1_", n, case, sensor_data_CFD)
-    # tehp, dehp = get_states("estimates/" + case + "_experiment/hp_trend_lam10_", n, case, sensor_data_CFD)
+    tet, det = get_states("estimates/" + case + "_experiment/tikh_lam001_", n, case, sensor_data_CFD)
+    tel1, del1 = get_states("estimates/" + case + "_experiment/l1_lam001_", n, case, sensor_data_CFD)
+    tehp, dehp = get_states("estimates/" + case + "_experiment/hp_trend_lam10_", n, case, sensor_data_CFD)
     tel1t, del1t = get_states("estimates/" + case + "_experiment/l1_trend_lam10_", n, case, sensor_data_CFD)
 
     plt.figure()
+    plt.subplot(211)
     plt.plot(sensor_data_CFD[:,0], sensor_data_CFD[:,-1], color='black', label='Measurement')
-    # plt.plot(tet, det, color='dimgray', label='Tikhonov regularization')
-    # plt.plot(tel1, del1, color='dimgray', linestyle='dashed', label='$\ell_1$-regularization')
-    # plt.plot(tehp, dehp, color='red', label='H-P trend filtering')
-    plt.plot(tel1t, del1t, color='blue', label='$\ell_1$ trend filtering')
-    plt.xlim(4,34)
-    plt.ylim(0,21)
+    plt.plot(tet, det, color='red', linestyle='dashed', label='Tikhonov regularization')
+    plt.plot(tel1, del1, color='blue', linestyle='dashed', label='$\ell_1$ regularization', alpha=0.7)
     plt.legend()
+    plt.xlim(4,34)
+    plt.ylim(0,22)
+    plt.ylabel("Torque (Nm)")
+
+    plt.subplot(212)
+    plt.plot(sensor_data_CFD[:,0], sensor_data_CFD[:,-1], color='black', label='Measurement')
+    plt.plot(tehp, dehp, color='red', label='H-P trend filtering')
+    plt.plot(tel1t, del1t, color='blue', label='$\ell_1$ trend filtering')
+    plt.legend()
+    plt.xlim(4,34)
+    plt.ylim(0,22)
     plt.ylabel("Torque (Nm)")
     plt.xlabel("Time (s)")
-    # plt.savefig("../figures/CFD_2000_torque_estimate.pdf")
+    # plt.savefig("../figures/CFD_2000_torque_estimate_all.pdf")
+    # plt.show()
+
+    plt.figure()
+    plt.subplot(211)
+    plt.plot(sensor_data_CFD[:,0], sensor_data_CFD[:,-1], color='black', label='Measurement')
+    plt.plot(tet, det, color='red', linestyle='dashed', label='Tikhonov regularization')
+    plt.plot(tel1, del1, color='blue', linestyle='dashed', label='$\ell_1$ regularization', alpha=0.7)
+    plt.legend()
+    plt.xlim(17.51,18)
+    plt.ylim(-2,21)
+    plt.ylabel("Torque (Nm)")
+
+    plt.subplot(212)
+    plt.plot(sensor_data_CFD[:,0], sensor_data_CFD[:,-1], color='black', label='Measurement')
+    plt.plot(tehp, dehp, color='red', label='H-P trend filtering')
+    plt.plot(tel1t, del1t, color='blue', label='$\ell_1$ trend filtering')
+    plt.legend()
+    plt.xlim(17.51,18)
+    plt.ylim(-2,21)
+    plt.ylabel("Torque (Nm)")
+    plt.xlabel("Time (s)")
+    # plt.savefig("../figures/CFD_2000_torque_estimate_all_zoomed.pdf")
     plt.show()
 
 
 def plot_unit_estimates():
-    case = "impulse"
+    case = "experiments_redone/impulse"
     n = 10
-    sensor_data_impulse = np.loadtxt("../data/masters_data/processed_data/" + case + "_sensor.csv", delimiter=",")
+    sensor_data_impulse = np.loadtxt("../data/masters_data/processed_data/impulse_sensor.csv", delimiter=",")
 
     tet, det = get_states("estimates/" + case + "_experiment/tikh_lam001_", n, case, sensor_data_impulse)
-    tel1, del1 = get_states("estimates/" + case + "_experiment/l1_lam1_", n, case, sensor_data_impulse)
+    tel1, del1 = get_states("estimates/" + case + "_experiment/l1_lam001_", n, case, sensor_data_impulse)
     tehp, dehp = get_states("estimates/" + case + "_experiment/hp_trend_lam01_", n, case, sensor_data_impulse)
     tel1t, del1t = get_states("estimates/" + case + "_experiment/l1_trend_lam10_", n, case, sensor_data_impulse)
 
     ax1 = plt.subplot(221)
     # plt.title("a)", loc='left')
     ax1.plot(sensor_data_impulse[:,0], sensor_data_impulse[:,-1], color='black', label='Measurement')
-    ax1.plot(tet, det, color='dimgray', label='Tikhonov regularization')
-    ax1.plot(tel1, del1, color='dimgray', linestyle='dashed', label='$\ell_1$-regularization')
+    ax1.plot(tet, det, color='C3', linestyle='dashed', label='Tikhonov regularization')
+    ax1.plot(tel1, del1, color='C0', linestyle='dashed', label='$\ell_1$ regularization', alpha=0.8)
     ax1.plot(tehp, dehp, color='red', label='H-P trend filtering')
     ax1.plot(tel1t, del1t, color='blue', label='$\ell_1$ trend filtering')
     ax1.set_xlim(1.1,1.6)
@@ -146,20 +236,20 @@ def plot_unit_estimates():
     ax1.set_ylabel("Torque (Nm)")
     ax1.set_xlabel("Time (s)")
 
-    case = "sin"
+    case = "experiments_redone/sin"
     n = 18
-    sensor_data_sin = np.loadtxt("../data/masters_data/processed_data/" + case + "_sensor.csv", delimiter=",")
+    sensor_data_sin = np.loadtxt("../data/masters_data/processed_data/sin_sensor.csv", delimiter=",")
 
     tets, dets = get_states("estimates/" + case + "_experiment/tikh_lam001_", n, case, sensor_data_sin)
     tel1s, del1s = get_states("estimates/" + case + "_experiment/l1_lam01_", n, case, sensor_data_sin)
-    tehps, dehps = get_states("estimates/" + case + "_experiment/hp_trend_lam01_", n, case, sensor_data_sin)
+    tehps, dehps = get_states("estimates/" + case + "_experiment/hp_trend_lam10_", n, case, sensor_data_sin)
     tel1ts, del1ts = get_states("estimates/" + case + "_experiment/l1_trend_lam1_", n, case, sensor_data_sin)
 
     plt.subplot(222)
     # plt.title("b)", loc='left')
     plt.plot(sensor_data_sin[:,0], sensor_data_sin[:,-1], color='black', label='Torque transducer 2')
-    plt.plot(tets, dets, color='dimgray', label='Tikhonov regularization')
-    plt.plot(tel1s, del1s, color='dimgray', linestyle='dashed', label='$\ell_1$-regularization')
+    plt.plot(tets, dets, color='C3', linestyle='dashed', label='Tikhonov regularization')
+    plt.plot(tel1s, del1s, color='C0', linestyle='dashed', label='$\ell_1$-regularization', alpha=0.8)
     plt.plot(tehps, dehps, color='red', label='H-P trend filtering')
     plt.plot(tel1ts, del1ts, color='blue', label='$\ell_1$ trend filtering')
     plt.xlim(1.49,1.55)
@@ -167,20 +257,20 @@ def plot_unit_estimates():
     plt.ylabel("Torque (Nm)")
     plt.xlabel("Time (s)")
 
-    case = "step"
+    case = "experiments_redone/step"
     n = 25
-    sensor_data_step = np.loadtxt("../data/masters_data/processed_data/" + case + "_sensor.csv", delimiter=",")
+    sensor_data_step = np.loadtxt("../data/masters_data/processed_data/step_sensor.csv", delimiter=",")
 
     tetst, detst = get_states("estimates/" + case + "_experiment/tikh_lam001_", n, case, sensor_data_step)
     tel1st, del1st = get_states("estimates/" + case + "_experiment/l1_lam1_", n, case, sensor_data_step)
     tehpst, dehpst = get_states("estimates/" + case + "_experiment/hp_trend_lam01_", n, case, sensor_data_step)
-    tel1tst, del1tst = get_states("estimates/" + case + "_experiment/l1_trend_lam10_", n, case, sensor_data_step)
+    tel1tst, del1tst = get_states("estimates/" + case + "_experiment/l1_trend_lam1_", n, case, sensor_data_step)
 
     plt.subplot(223)
     # plt.title("c)", loc='left')
     plt.plot(sensor_data_step[:,0], sensor_data_step[:,-1], color='black', label='Torque transducer 2')
-    plt.plot(tetst, detst, color='dimgray', label='Tikhonov regularization')
-    plt.plot(tel1st, del1st, color='dimgray', linestyle='dashed', label='$\ell_1$-regularization')
+    plt.plot(tetst, detst, color='C3', linestyle='dashed', label='Tikhonov regularization')
+    plt.plot(tel1st, del1st, color='C0', linestyle='dashed', label='$\ell_1$-regularization', alpha=0.8)
     plt.plot(tehpst, dehpst, color='red', label='H-P trend filtering')
     plt.plot(tel1tst, del1tst, color='blue', label='$\ell_1$ trend filtering')
     plt.xlim(4.2,5.3)
@@ -188,23 +278,24 @@ def plot_unit_estimates():
     plt.ylabel("Torque (Nm)")
     plt.xlabel("Time (s)")
 
-    case = "ramp"
+    case = "experiments_redone/ramp"
     n = 136
-    sensor_data_ramp = np.loadtxt("../data/masters_data/processed_data/" + case + "_sensor.csv", delimiter=",")
+    sensor_data_ramp = np.loadtxt("../data/masters_data/processed_data/ramp_sensor.csv", delimiter=",")
 
     tetr, detr = get_states("estimates/" + case + "_experiment/tikh_lam001_", n, case, sensor_data_ramp)
-    tel1r, del1r = get_states("estimates/" + case + "_experiment/l1_lam1_", n, case, sensor_data_ramp)
+    tel1r, del1r = get_states("estimates/" + case + "_experiment/l1_lam001_", n, case, sensor_data_ramp)
     tehpr, dehpr = get_states("estimates/" + case + "_experiment/hp_trend_lam10_", n, case, sensor_data_ramp)
     tel1tr, del1tr = get_states("estimates/" + case + "_experiment/l1_trend_lam10_", n, case, sensor_data_ramp)
 
     plt.subplot(224)
     # plt.title("d)", loc='left')
     plt.plot(sensor_data_ramp[:,0], sensor_data_ramp[:,-1], color='black', label='Torque transducer 2')
-    plt.plot(tetr, detr, color='dimgray', label='Tikhonov regularization')
-    plt.plot(tel1r, del1r, color='dimgray', linestyle='dashed', label='$\ell_1$-regularization')
+    plt.plot(tetr, detr, color='C3', linestyle='dashed', label='Tikhonov regularization')
+    plt.plot(tel1r, del1r, color='C0', linestyle='dashed', label='$\ell_1$-regularization', alpha=0.8)
     plt.plot(tehpr, dehpr, color='red', label='H-P trend filtering')
     plt.plot(tel1tr, del1tr, color='blue', label='$\ell_1$ trend filtering')
-    plt.xlim(34.2,35.8)
+    # plt.xlim(34.2,35.8)
+    plt.xlim(34.5,35.5)
     plt.ylim(2,9)
     plt.ylabel("Torque (Nm)")
     plt.xlabel("Time (s)")
@@ -212,6 +303,54 @@ def plot_unit_estimates():
     # plt.savefig("../figures/unit_torque_estimates.pdf")
     plt.show()
 
+
+def plot_kf_vs_hp():
+    case = "step"
+    n = 25
+    sensor_data_ramp = np.loadtxt("../data/masters_data/processed_data/" + case + "_sensor.csv", delimiter=",")
+
+    t_hp, d_hp = get_states("estimates/" + case + "_experiment/hp_trend_lam01_", n, case, sensor_data_ramp)
+
+    with open("estimates/kf_vs_hp/hp_trend_lam01_KF.pickle", 'rb') as handle_kf:
+        kf_dataset = pickle.load(handle_kf)
+        time_kf = kf_dataset[0]
+        input_kf = kf_dataset[1]
+        torque_kf = kf_dataset[2]
+
+    with open("estimates/kf_vs_hp/hp_trend_lam01_KF_0_mean.pickle", 'rb') as handle_kf:
+        kf_dataset = pickle.load(handle_kf)
+        time_kf_0 = kf_dataset[0]
+        input_kf_0 = kf_dataset[1]
+        torque_kf_0 = kf_dataset[2]
+
+
+    plt.subplot(211)
+    plt.plot(sensor_data_ramp[:,0], sensor_data_ramp[:,-1], color='black', label='Measurement')
+    plt.plot(t_hp, d_hp, color='red', label='H-P trend filtering')
+    plt.plot(time_kf[:-10], torque_kf[10:,18], color='royalblue', label='Kalman filter')
+    plt.legend()
+    plt.ylabel("Torque (Nm)")
+    plt.xlabel("Time (s)")
+    plt.xlim(4.2,5.3)
+    plt.ylim(-1,27)
+
+    plt.subplot(212)
+    plt.plot(sensor_data_ramp[:,0], sensor_data_ramp[:,-1], color='black', label='Measurement')
+    plt.plot(t_hp, d_hp, color='red', label='H-P trend filtering')
+    plt.plot(time_kf_0[:-10], torque_kf_0[10:,18], color='royalblue', label='KF (zero mean motor torque)')
+    plt.legend()
+    plt.ylabel("Torque (Nm)")
+    plt.xlabel("Time (s)")
+    plt.xlim(4.2,5.3)
+    plt.ylim(-1,27)
+
+    plt.savefig("../figures/step_kf_both_vs_hp.pdf")
+    plt.show()
+
+
 if __name__ == "__main__":
-    # plot_unit_estimates()
-    plot_maritime_estimates()
+    plot_unit_estimates()
+    # plot_maritime_estimates()
+    # plot_kf_vs_hp()
+
+    # plot_ice_different_lambda()

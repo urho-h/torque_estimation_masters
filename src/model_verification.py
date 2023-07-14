@@ -116,7 +116,7 @@ def plot_unit_setpoint():
     plt.xlabel("Time (s)")
 
     plt.tight_layout()
-    plt.savefig("../figures/all_setpoint.pdf")
+    # plt.savefig("../figures/all_setpoint.pdf")
     plt.show()
 
 
@@ -133,20 +133,20 @@ def simulation_and_process_data():
     # s, e = 69000, -20000 # step 2000 rpm, single step
     # s, e = 300000, -370000 # sinusoidal load steady state 2000 rpm
     # s, e = 9000, -190000 # ramp dataset
-    # s, e = 9000, -10000 # ice dataset
+    s, e = 9000, -10000 # ice dataset
     # s, e = 900, -2000 # CFD dataset
     # s, e = 168000, -3000 # ice 2000 rpm dataset
-    s, e = 774000, -210000 # CFD 2000 rpm dataset
+    # s, e = 774000, -210000 # CFD 2000 rpm dataset
     start = int(s/3) # start point for motor data, 1/3 of sensor data start
 
     sensor_data = np.loadtxt(
-        "../data/masters_data/raw_data/CFD_sensor.csv",
+        "../data/masters_data/raw_data/no_load_sensor.csv",
         delimiter=",",
         skiprows=1
     )
 
     motor_data = np.loadtxt(
-        "../data/masters_data/raw_data/CFD_motor.csv",
+        "../data/masters_data/raw_data/no_load_motor.csv",
         delimiter=",",
         skiprows=1
     )
@@ -258,8 +258,8 @@ def simulation_and_process_data():
 
 
 if __name__ == "__main__":
-    simulation_and_process_data()
-    # plot_unit_setpoint()
+    # simulation_and_process_data()
+    plot_unit_setpoint()
 
     # DONE: impulse data
     # DONE: sinusoidal data

@@ -15,8 +15,8 @@ plt.style.use('science')
 plt.rcParams.update({
     "text.usetex": True,
     "font.family": "Computer Modern",
-    "font.size": 11,
-    "figure.figsize": (6,4),
+    "font.size": 12,
+    "figure.figsize": (7,6),
 })
 
 
@@ -151,7 +151,7 @@ def step_excitation(sim_times, fs, bs, plot_input=False):
     # U_step[:,0] += np.flip(np.linspace(-2.5, 2.5, 10000)) + e1
     U_step[:,0] += 2.7 + e1
     U_step[:,1] += e2
-    U_step[3200:5200,1] += 1.0
+    U_step[3200:5200,1] += 10.0
     U_step[5200:8200,1] -= 4.0
     U_step[8200:,1] += 0.5
 
@@ -230,10 +230,10 @@ def sinusoidal_excitation(sim_times, fs, bs, plot_input=False):
 
         return signal + dc_offset
 
-    freqs = [20, 40, 60]
-    amps = [2, 1, 0.5]
+    freqs = [2000/60*2*np.pi, 4*2000/60*2*np.pi, 8*2000/60*2*np.pi]
+    amps = [10, 5, 1]
     phases = [0, 0, 0]
-    offset = 0
+    offset = 10
     sine_signal = sum_sines(freqs, amps, phases, sim_times, offset)
 
     U_sin = np.zeros((len(sim_times), 2))
@@ -298,7 +298,7 @@ def ice_excitation_simulated(sim_times, fs, bs, plot_input=False):
     return U_ice
 
 
-def input_and_state_estimation(load, meas, sim_times, batch_size, lam_tikh, lam_lasso, overlap=50, run_tikh=False, run_lasso=False, run_elastic_net=False, run_kf=False, use_trend_filter=False, pickle_results=False, fname='estimation_results'):
+def input_and_state_estimation(load, meas, sim_times, batch_size, lam_tikh, lam_lasso, overlap=50, run_tikh=False, run_lasso=False, run_elastic_net=False, run_kf=False, use_trend_filter=False, pickle_results=False, fname='estimation_results.pickle'):
     dt = np.mean(np.diff(sim_times))
     A, B, C, D = get_testbench_state_space(dt)
     sys = (A, B, C, D)
@@ -321,7 +321,8 @@ def input_and_state_estimation(load, meas, sim_times, batch_size, lam_tikh, lam_
         input_tikh = ie.estimate_input(
             sys,
             meas[:,:3],
-            batch_size+2*overlap,
+            batch_size,
+            overlap,
             sim_times,
             lam=lam_tikh,
             use_trend_filter=use_trend_filter,
@@ -333,7 +334,8 @@ def input_and_state_estimation(load, meas, sim_times, batch_size, lam_tikh, lam_
         input_lasso = ie.estimate_input(
             sys,
             meas[:,:3],
-            batch_size+2*overlap,
+            batch_size,
+            overlap,
             sim_times,
             lam=lam_lasso,
             use_zero_init=True,
@@ -396,7 +398,7 @@ def plot_unit_test_loads():
 
     plt.subplot(222)
     plt.title("b)", loc='left')
-    plt.plot(sim_times[:400], sinusoidal_load[3000:3400,1], color='blue')
+    plt.plot(sim_times[:200], sinusoidal_load[3000:3200,1], color='blue')
     plt.xlabel("Time (s)")
     plt.ylabel("Torque (Nm)")
 
@@ -413,8 +415,168 @@ def plot_unit_test_loads():
     plt.ylabel("Torque (Nm)")
 
     plt.tight_layout()
-    # plt.savefig("../figures/l_curve_setpoints.pdf")
+    # plt.savefig("../figures/l_curve_setpoints_redone.pdf")
     plt.show()
+
+
+def plot_input_estimates(plot_all=False):
+    fs = 1000
+    sim_times = np.arange(0, 10, 1/fs)
+    batch_size = 500
+    impulse_load = impulse_excitation(sim_times, fs, batch_size)
+    sinusoidal_load = sinusoidal_excitation(sim_times, fs, batch_size)
+    step_load = step_excitation(sim_times, fs, batch_size)
+    ramp_load = ramp_excitation(sim_times, fs, batch_size)
+
+    def get_estimate(fn):
+        overlap = 50
+        n_batches = 20
+        motor_estimates, propeller_estimates = [], []
+        for i in range(n_batches):
+            with open(fn + str(i) + ".pickle", 'rb') as handle:
+                dataset = pickle.load(handle)
+                if i == 0:
+                    all_motor_estimates = dataset[0][::2]
+                    motor_estimates = all_motor_estimates[:-2*overlap]
+                    all_propeller_estimates = dataset[0][1::2]
+                    propeller_estimates = all_propeller_estimates[:-2*overlap]
+                else:
+                    all_motor_estimates = dataset[0][::2]
+                    motor_estimates = np.concatenate(
+                        (motor_estimates, all_motor_estimates[overlap:-overlap])
+                    )
+                    all_propeller_estimates = dataset[0][1::2]
+                    propeller_estimates = np.concatenate(
+                        (propeller_estimates, all_propeller_estimates[overlap:-overlap])
+                    )
+
+        return propeller_estimates, motor_estimates
+
+    impulse_tikh, _ = get_estimate('estimates/simulated/impulse_experiment_tikh_lam001_')
+    impulse_l1, _ = get_estimate('estimates/simulated/impulse_experiment_l1_lam001_')
+    impulse_hp, _ = get_estimate('estimates/simulated/impulse_experiment_hp_trend_lam01_')
+    impulse_l1t, _ = get_estimate('estimates/simulated/impulse_experiment_l1_trend_lam10_')
+
+    if plot_all:
+        ax1 = plt.subplot(221)
+        # plt.title("a)", loc='left')
+        ax1.plot(sim_times, impulse_load[:,-1], color='black', label='Simulated')
+        ax1.plot(sim_times, impulse_tikh, color='dimgray', label='Tikhonov regularization')
+        ax1.plot(sim_times, impulse_l1, color='dimgray', linestyle='dashed', label='$\ell_1$-regularization')
+        ax1.plot(sim_times, impulse_hp, color='red', label='H-P trend filtering')
+        ax1.plot(sim_times, impulse_l1t, color='blue', label='$\ell_1$ trend filtering')
+        ax1.set_xlim(3.15,3.3)
+        ax1.set_ylim(-3,18)
+        ax1.legend(
+            loc='upper center',
+            bbox_to_anchor=(1.1, 1.3),
+            fancybox=True,
+            shadow=True,
+            ncol=3
+        )
+        ax1.set_ylabel("Torque (Nm)")
+        ax1.set_xlabel("Time (s)")
+
+        sin_tikh, _ = get_estimate('estimates/simulated/sin_experiment_tikh_lam001_')
+        sin_l1, _ = get_estimate('estimates/simulated/sin_experiment_l1_lam01_')
+        # sin_hp, _ = get_estimate('estimates/simulated/sin_experiment_hp_trend_lam10_')
+        # sin_l1t, _ = get_estimate('estimates/simulated/sin_experiment_l1_trend_lam1_')
+        sin_hp, sin_hp_mot = get_estimate('estimates/simulated/sin_experiment_hp_trend_lam01_')
+        sin_l1t, _ = get_estimate('estimates/simulated/sin_experiment_l1_trend_lam01_')
+
+        plt.subplot(222)
+        # plt.title("b)", loc='left')
+        plt.plot(sim_times, sinusoidal_load[:,-1], color='black', label='Torque transducer 2')
+        plt.plot(sim_times, sin_tikh, color='dimgray', label='Tikhonov regularization')
+        plt.plot(sim_times, sin_l1, color='dimgray', linestyle='dashed', label='$\ell_1$-regularization')
+        plt.plot(sim_times, sin_hp, color='red', label='H-P trend filtering')
+        plt.plot(sim_times, sin_l1t, color='blue', label='$\ell_1$ trend filtering')
+        plt.xlim(1.49,1.55)
+        plt.ylim(-5,26)
+        plt.ylabel("Torque (Nm)")
+        plt.xlabel("Time (s)")
+
+        step_tikh, _ = get_estimate('estimates/simulated/step_experiment_tikh_lam001_')
+        step_l1, _ = get_estimate('estimates/simulated/step_experiment_l1_lam1_')
+        step_hp, _ = get_estimate('estimates/simulated/step_experiment_hp_trend_lam01_')
+        step_l1t, _ = get_estimate('estimates/simulated/step_experiment_l1_trend_lam1_')
+
+        plt.subplot(223)
+        # plt.title("c)", loc='left')
+        plt.plot(sim_times, step_load[:,-1], color='black', label='Torque transducer 2')
+        plt.plot(sim_times, step_tikh, color='dimgray', label='Tikhonov regularization')
+        plt.plot(sim_times, step_l1, color='dimgray', linestyle='dashed', label='$\ell_1$-regularization')
+        plt.plot(sim_times, step_hp, color='red', label='H-P trend filtering')
+        plt.plot(sim_times, step_l1t, color='blue', label='$\ell_1$ trend filtering')
+        plt.xlim(3.0,3.4)
+        plt.ylim(-1,15)
+        plt.ylabel("Torque (Nm)")
+        plt.xlabel("Time (s)")
+
+        _, ramp_tikh = get_estimate('estimates/simulated/ramp_experiment_tikh_lam001_')
+        _, ramp_l1 = get_estimate('estimates/simulated/ramp_experiment_l1_lam001_')
+        _, ramp_hp = get_estimate('estimates/simulated/ramp_experiment_hp_trend_lam10_')
+        _, ramp_l1t = get_estimate('estimates/simulated/ramp_experiment_l1_trend_lam10_')
+
+        plt.subplot(224)
+        # plt.title("d)", loc='left')
+        plt.plot(sim_times, ramp_load[:,0], color='black', label='Torque transducer 2')
+        plt.plot(sim_times, ramp_tikh, color='dimgray', label='Tikhonov regularization')
+        plt.plot(sim_times, ramp_l1, color='dimgray', linestyle='dashed', label='$\ell_1$-regularization')
+        plt.plot(sim_times, ramp_hp, color='red', label='H-P trend filtering')
+        plt.plot(sim_times, ramp_l1t, color='blue', label='$\ell_1$ trend filtering')
+        plt.xlim(3.1,3.3)
+        plt.ylim(2.4,2.8)
+        plt.ylabel("Torque (Nm)")
+        plt.xlabel("Time (s)")
+
+        # plt.savefig("../figures/unit_torque_estimates.pdf")
+        plt.show()
+    else:
+        plt.subplot(221)
+        plt.title("Tikhonov regularization")
+        plt.plot(sim_times, impulse_load[:,-1], color='black', label='Simulated input torque')
+        plt.plot(sim_times, impulse_tikh, color='red', label='Estimated input torque')
+        plt.xlim(3.12,3.33)
+        plt.ylim(-3,16)
+        plt.ylabel("Torque (Nm)")
+        plt.xlabel("Time (s)")
+        plt.legend(loc='upper left')
+        plt.text(3.27, 6, "$\lambda = 0.01$")
+
+        plt.subplot(222)
+        plt.title("$\ell_1$ regularization")
+        plt.plot(sim_times, impulse_load[:,-1], color='black', label='Simulated')
+        plt.plot(sim_times, impulse_l1, color='red', linestyle='solid', label='$\ell_1$-regularization')
+        plt.xlim(3.12,3.33)
+        plt.ylim(-3,16)
+        plt.ylabel("Torque (Nm)")
+        plt.xlabel("Time (s)")
+        plt.text(3.27, 6, "$\lambda = 0.01$")
+
+        plt.subplot(223)
+        plt.title("H-P trend filter")
+        plt.plot(sim_times, impulse_load[:,-1], color='black', label='Simulated')
+        plt.plot(sim_times, impulse_hp, color='red', label='H-P trend filtering')
+        plt.xlim(3.12,3.33)
+        plt.ylim(-3,16)
+        plt.ylabel("Torque (Nm)")
+        plt.xlabel("Time (s)")
+        plt.text(3.27, 6, "$\lambda = 0.1$")
+
+        plt.subplot(224)
+        plt.title("$\ell_1$ trend filter")
+        plt.plot(sim_times, impulse_load[:,-1], color='black', label='Torque transducer 2')
+        plt.plot(sim_times, impulse_l1t, color='red', label='$\ell_1$ trend filtering')
+        plt.xlim(3.12,3.33)
+        plt.ylim(-3,16)
+        plt.ylabel("Torque (Nm)")
+        plt.xlabel("Time (s)")
+        plt.text(3.27, 6, "$\lambda = 10$")
+
+        plt.tight_layout()
+        plt.savefig("../figures/unit_impulse_estimates.pdf")
+        plt.show()
 
 
 def simulation_experiment(run_estimation=False, plot_l_curve=False, plot_elastic_curve=False, plot_input=False):
@@ -429,7 +591,7 @@ def simulation_experiment(run_estimation=False, plot_l_curve=False, plot_elastic
     sinusoidal_load = sinusoidal_excitation(sim_times, fs, batch_size, plot_input=plot_input)
     ice_load = ice_excitation_simulated(sim_times, fs, batch_size, plot_input=plot_input)
 
-    load = impulse_load
+    load = sinusoidal_load
 
     if plot_input:
         A, B, C, D = get_testbench_state_space(dt)
@@ -460,7 +622,10 @@ def simulation_experiment(run_estimation=False, plot_l_curve=False, plot_elastic
             use_trend=True,
             show_plot=True,
             pickle_data=True,
-            fname='estimates/pareto_curves_new/impulse_experiment_hp_trend_curve'
+            fname='estimates/pareto_curves_new/sin_experiment_hp_trend_curve'
+            # fname='estimates/pareto_curves_new/sin_experiment_l1_trend_curve'
+            # fname='estimates/pareto_curves_new/sin_experiment_l1_curve'
+            # fname='estimates/pareto_curves_new/sin_experiment_tikh_curve'
         )
 
     if plot_elastic_curve:
@@ -480,26 +645,25 @@ def simulation_experiment(run_estimation=False, plot_l_curve=False, plot_elastic
             load,
             0,
             sim_times,
-            batch_size,
+            500,
             0.1,
             0.1,
             run_tikh=True,
             run_lasso=False,
-            run_elastic_net=False,
-            run_kf=False,
-            use_trend_filter=False,
+            use_trend_filter=True,
             pickle_results=True,
-            fname='estimates/simulated/impulse_experiment_lam01_tikh'
+            fname='estimates/simulated/sin_experiment_hp_trend_lam01_'
         )
 
 
 if __name__ == "__main__":
     # simulation_experiment(
     #     plot_input=False,
-    #     plot_l_curve=True,
+    #     plot_l_curve=False,
     #     plot_elastic_curve=False,
-    #     run_estimation=False
+    #     run_estimation=True
     # )
 
     # plot_elastic_net_curve()
-    plot_unit_test_loads()
+    # plot_unit_test_loads()
+    plot_input_estimates(plot_all=False)

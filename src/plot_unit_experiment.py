@@ -26,7 +26,7 @@ def get_testbench_state_space(dt):
 
 
 def plot_batch(fn, n_batches):
-    motor_data = np.loadtxt("../data/masters_data/processed_data/CFD_2000_motor.csv", delimiter=",")
+    motor_data = np.loadtxt("../data/masters_data/processed_data/step_motor.csv", delimiter=",")
     time = motor_data[:,0]
     motor = motor_data[:,2]
     propeller = motor_data[:,-2]
@@ -66,7 +66,7 @@ def plot_batch(fn, n_batches):
     # plt.legend()
 
     #######################################
-    sensor_data = np.loadtxt("../data/masters_data/processed_data/CFD_2000_sensor.csv", delimiter=",")
+    sensor_data = np.loadtxt("../data/masters_data/processed_data/step_sensor.csv", delimiter=",")
 
     time = sensor_data[:,0]
     dt = np.mean(np.diff(time))
@@ -83,14 +83,19 @@ def plot_batch(fn, n_batches):
         t=t_estimate
     )
 
-    # plt.figure()
-    plt.plot(time, sensor_data[:,-1], label='Torque transducer 2')
-    plt.plot(np.linspace(0, time[-1], yout_ests.shape[0]), yout_ests[:,-1], label='estimate')
+    with open(fn + "KF_0_mean.pickle", 'rb') as handle_kf:
+        kf_dataset = pickle.load(handle_kf)
+        time_kf = kf_dataset[0]
+        input_kf = kf_dataset[1]
+        torque_kf = kf_dataset[2]
+
+    plt.figure()
+    plt.plot(time, sensor_data[:,-1], label='Measurement', color='black')
+    plt.plot(time_kf, torque_kf, color='royalblue')
+    plt.plot(np.linspace(0, time[-1], yout_ests.shape[0]), yout_ests[:,-1], label='estimate', color='red')
     plt.legend()
-    # plt.show()
+    plt.show()
 
 
 if __name__ == "__main__":
-    plot_batch("estimates/CFD_test_2000_hp_trend_lam01_", 76)
-    # plot_batch("estimates/damping_test_2000_2_hp_trend_lam01_", 20)
-    plt.show()
+    plot_batch("estimates/kf_vs_hp/hp_trend_lam01_", 25)

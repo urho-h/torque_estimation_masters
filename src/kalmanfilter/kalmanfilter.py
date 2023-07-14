@@ -25,7 +25,7 @@ def ice_excitation_data():
 
 
 def get_testbench_state_space(dt):
-    inertias, stiffs, damps, damps_ext, ratios = tb.parameters()
+    inertias, stiffs, damps, damps_ext, ratios = tb.new_parameters()
     Ac, Bc, C, D = tb.state_space_matrices(inertias, stiffs, damps, damps_ext, ratios)
 
     A, B = tb.c2d(Ac, Bc, dt)

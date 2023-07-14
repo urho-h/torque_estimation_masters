@@ -53,10 +53,11 @@ def plot_l_curves():
     plt.yscale("log")
     plt.xscale("log")
     plt.scatter(residual_norm_tikh[:-2], l_norm_tikh[:-2], color='blue')
+    plt.scatter(residual_norm_tikh[5], l_norm_tikh[5], color='red')
     plt.annotate(
         "$\lambda$ = " + str(lambdas_tikh[5]),
         (residual_norm_tikh[5], l_norm_tikh[5]),
-        (residual_norm_tikh[5]+50, l_norm_tikh[5]+2)
+        (residual_norm_tikh[5]+1, l_norm_tikh[5]+50)
     )
     plt.ylabel("$||L u||_2$")
 
@@ -65,23 +66,25 @@ def plot_l_curves():
     plt.yscale("log")
     plt.xscale("log")
     plt.scatter(residual_norm_hp_trend, l_norm_hp_trend, color='blue')
+    plt.scatter(residual_norm_hp_trend[6], l_norm_hp_trend[6], color='red')
     plt.annotate(
         "$\lambda$ = " + str(lambdas_hp_trend[6]),
         (residual_norm_hp_trend[6], l_norm_hp_trend[6]),
         (residual_norm_hp_trend[6]+1, l_norm_hp_trend[6]+1)
     )
     plt.ylabel("$||L u||_2$")
-    plt.yticks(ticks=[3,4,6,10], labels=[None,None,None,"$10^1$"])
+    plt.xticks(ticks=[3,4,6,10], labels=[None,None,None,"$10^1$"])
 
     plt.subplot(4, 5, 4)
     plt.title("$\ell_1$-regularization")
     plt.yscale("log")
     plt.xscale("log")
     plt.scatter(residual_norm_l1, l_norm_l1, color='blue')
+    plt.scatter(residual_norm_l1[4], l_norm_l1[4], color='red')
     plt.annotate(
-        "$\lambda$ = " + str(lambdas_l1[7]),
-        (residual_norm_l1[7], l_norm_l1[7]),
-        (residual_norm_l1[7]+0.5, l_norm_l1[7]+10)
+        "$\lambda$ = " + str(lambdas_l1[5]),
+        (residual_norm_l1[5], l_norm_l1[5]),
+        (residual_norm_l1[5]+0.5, l_norm_l1[5]-1450)
     )
     plt.ylabel("$||L u||_1$")
 
@@ -90,14 +93,15 @@ def plot_l_curves():
     plt.yscale("log")
     plt.xscale("log")
     plt.scatter(residual_norm_l1_trend, l_norm_l1_trend, color='blue')
+    plt.scatter(residual_norm_l1_trend[8], l_norm_l1_trend[8], color='red')
     plt.annotate(
         "$\lambda$ = " + str(lambdas_l1_trend[8]),
         (residual_norm_l1_trend[8], l_norm_l1_trend[8]),
-        (residual_norm_l1_trend[8]+0.5, l_norm_l1_trend[8]+0.5)
+        (residual_norm_l1_trend[8]+0.5, l_norm_l1_trend[8]+100)
     )
     plt.ylabel("$||L u||_1$")
-    plt.yticks(ticks=[3,4,6,10], labels=[None,None,None,"$10^1$"])
-    plt.ylim(top=11)
+    plt.xticks(ticks=[3,4,6,10], labels=[None,None,None,"$10^1$"])
+    # plt.ylim(top=11)
 
     with open("estimates/pareto_curves_new/sin_experiment_tikh_curve.pickle", 'rb') as handle:
         dataset = pickle.load(handle)
@@ -124,7 +128,7 @@ def plot_l_curves():
         lambdas_l1_trend = dataset[2]
 
     plt.subplot(4, 5, 6)
-    plt.plot(sim_times[:400], sinusoidal_load[3000:3400,1], color='blue')
+    plt.plot(sim_times[:200], sinusoidal_load[3000:3200,1], color='blue')
     plt.xticks(ticks=[], labels=[])
     plt.yticks(ticks=[], labels=[])
 
@@ -132,10 +136,11 @@ def plot_l_curves():
     plt.yscale("log")
     plt.xscale("log")
     plt.scatter(residual_norm_tikh[:-2], l_norm_tikh[:-2], color='blue')
+    plt.scatter(residual_norm_tikh[5], l_norm_tikh[5], color='red')
     plt.annotate(
         "$\lambda$ = " + str(lambdas_tikh[5]),
         (residual_norm_tikh[5], l_norm_tikh[5]),
-        (residual_norm_tikh[5]+50, l_norm_tikh[5]+2)
+        (residual_norm_tikh[5]+5, l_norm_tikh[5]+2)
     )
     plt.ylabel("$||L u||_2$")
 
@@ -143,21 +148,24 @@ def plot_l_curves():
     plt.yscale("log")
     plt.xscale("log")
     plt.scatter(residual_norm_hp_trend, l_norm_hp_trend, color='blue')
+    plt.scatter(residual_norm_hp_trend[8], l_norm_hp_trend[8], color='red')
     plt.annotate(
-        "$\lambda$ = " + str(lambdas_hp_trend[6]),
-        (residual_norm_hp_trend[6], l_norm_hp_trend[6]),
-        (residual_norm_hp_trend[6]+10, l_norm_hp_trend[6]+1)
+        "$\lambda$ = " + str(lambdas_hp_trend[8]),
+        (residual_norm_hp_trend[8], l_norm_hp_trend[8]),
+        (residual_norm_hp_trend[8]+1, l_norm_hp_trend[8]+1)
     )
     plt.ylabel("$||L u||_2$")
+    plt.xticks(ticks=[3,4,6,10], labels=[None,None,None,"$10^1$"])
 
     plt.subplot(4, 5, 9)
     plt.yscale("log")
     plt.xscale("log")
     plt.scatter(residual_norm_l1, l_norm_l1, color='blue')
+    plt.scatter(residual_norm_l1[6], l_norm_l1[6], color='red')
     plt.annotate(
         "$\lambda$ = " + str(lambdas_l1[6]),
         (residual_norm_l1[6], l_norm_l1[6]),
-        (residual_norm_l1[6]+1, l_norm_l1[6]+10)
+        (residual_norm_l1[6]+1, l_norm_l1[6]+1100)
     )
     plt.ylabel("$||L u||_1$")
 
@@ -165,12 +173,14 @@ def plot_l_curves():
     plt.yscale("log")
     plt.xscale("log")
     plt.scatter(residual_norm_l1_trend, l_norm_l1_trend, color='blue')
+    plt.scatter(residual_norm_l1_trend[7], l_norm_l1_trend[7], color='red')
     plt.annotate(
         "$\lambda$ = " + str(lambdas_l1_trend[7]),
         (residual_norm_l1_trend[7], l_norm_l1_trend[7]),
-        (residual_norm_l1_trend[7]+1, l_norm_l1_trend[7]+1)
+        (residual_norm_l1_trend[7]+0.7, l_norm_l1_trend[7]+1)
     )
     plt.ylabel("$||L u||_1$")
+    plt.xticks(ticks=[3,4,6,10], labels=[None,None,None,"$10^1$"])
 
     with open("estimates/pareto_curves_new/step_experiment_tikh_curve.pickle", 'rb') as handle:
         dataset = pickle.load(handle)
@@ -205,10 +215,11 @@ def plot_l_curves():
     plt.yscale("log")
     plt.xscale("log")
     plt.scatter(residual_norm_tikh[:-2], l_norm_tikh[:-2], color='blue')
+    plt.scatter(residual_norm_tikh[5], l_norm_tikh[5], color='red')
     plt.annotate(
         "$\lambda$ = " + str(lambdas_tikh[5]),
         (residual_norm_tikh[5], l_norm_tikh[5]),
-        (residual_norm_tikh[5]+50, l_norm_tikh[5]+2)
+        (residual_norm_tikh[5]+5, l_norm_tikh[5]+2)
     )
     plt.ylabel("$||L u||_2$")
 
@@ -216,23 +227,23 @@ def plot_l_curves():
     plt.yscale("log")
     plt.xscale("log")
     plt.scatter(residual_norm_hp_trend, l_norm_hp_trend, color='blue')
+    plt.scatter(residual_norm_hp_trend[6], l_norm_hp_trend[6], color='red')
     plt.annotate(
         "$\lambda$ = " + str(lambdas_hp_trend[6]),
         (residual_norm_hp_trend[6], l_norm_hp_trend[6]),
-        (residual_norm_hp_trend[6], l_norm_hp_trend[6]-1.7)
+        (residual_norm_hp_trend[6]+1, l_norm_hp_trend[6]+10)
     )
-    plt.ylim(top=5)
-    plt.yticks(ticks=[1,2,3,4], labels=["$10^0$",None,None,None])
     plt.ylabel("$||L u||_2$")
 
     plt.subplot(4, 5, 14)
     plt.yscale("log")
     plt.xscale("log")
     plt.scatter(residual_norm_l1, l_norm_l1, color='blue')
+    plt.scatter(residual_norm_l1[7], l_norm_l1[7], color='red')
     plt.annotate(
         "$\lambda$ = " + str(lambdas_l1[7]),
         (residual_norm_l1[7], l_norm_l1[7]),
-        (residual_norm_l1[7], l_norm_l1[7]+5)
+        (residual_norm_l1[7], l_norm_l1[7]-1000)
     )
     plt.ylabel("$||L u||_1$")
 
@@ -240,13 +251,13 @@ def plot_l_curves():
     plt.yscale("log")
     plt.xscale("log")
     plt.scatter(residual_norm_l1_trend, l_norm_l1_trend, color='blue')
+    plt.scatter(residual_norm_l1_trend[8], l_norm_l1_trend[8], color='red')
     plt.annotate(
-        "$\lambda$ = " + str(lambdas_l1_trend[8]),
-        (residual_norm_l1_trend[8], l_norm_l1_trend[8]),
-        (residual_norm_l1_trend[8], l_norm_l1_trend[8]-1.5)
+        "$\lambda$ = " + str(lambdas_l1_trend[7]),
+        (residual_norm_l1_trend[7], l_norm_l1_trend[7]),
+        (residual_norm_l1_trend[7]+1, l_norm_l1_trend[7]+50)
     )
-    plt.ylim(top=5)
-    plt.yticks(ticks=[1,2,3,4], labels=["$10^0$",None,None,None])
+    plt.xticks(ticks=[3,4,6,10], labels=[None,None,None,"$10^1$"])
     plt.ylabel("$||L u||_1$")
 
     with open("estimates/pareto_curves_new/ramp_experiment_tikh_curve.pickle", 'rb') as handle:
@@ -282,10 +293,11 @@ def plot_l_curves():
     plt.yscale("log")
     plt.xscale("log")
     plt.scatter(residual_norm_tikh[:-2], l_norm_tikh[:-2], color='blue')
+    plt.scatter(residual_norm_tikh[5], l_norm_tikh[5], color='red')
     plt.annotate(
         "$\lambda$ = " + str(lambdas_tikh[5]),
         (residual_norm_tikh[5], l_norm_tikh[5]),
-        (residual_norm_tikh[5]+50, l_norm_tikh[5]+2)
+        (residual_norm_tikh[5]+2, l_norm_tikh[5]+80)
     )
     plt.xlabel("$||y-\Gamma u||_2$")
     plt.ylabel("$||L u||_2$")
@@ -294,13 +306,13 @@ def plot_l_curves():
     plt.yscale("log")
     plt.xscale("log")
     plt.scatter(residual_norm_hp_trend, l_norm_hp_trend, color='blue')
+    plt.scatter(residual_norm_hp_trend[8], l_norm_hp_trend[8], color='red')
     plt.annotate(
         "$\lambda$ = " + str(lambdas_hp_trend[8]),
         (residual_norm_hp_trend[8], l_norm_hp_trend[8]),
-        (residual_norm_hp_trend[8], l_norm_hp_trend[8]-1.8)
+        (residual_norm_hp_trend[8]+1, l_norm_hp_trend[8])
     )
-    plt.ylim(top=5)
-    plt.yticks(ticks=[1,2,3,4], labels=["$10^0$",None,None,None])
+    plt.xticks(ticks=[3,4,6,10], labels=[None,None,None,"$10^1$"])
     plt.xlabel("$||y-\Gamma u||_2$")
     plt.ylabel("$||L u||_2$")
 
@@ -308,10 +320,11 @@ def plot_l_curves():
     plt.yscale("log")
     plt.xscale("log")
     plt.scatter(residual_norm_l1, l_norm_l1, color='blue')
+    plt.scatter(residual_norm_l1[5], l_norm_l1[5], color='red')
     plt.annotate(
-        "$\lambda$ = " + str(lambdas_l1[7]),
-        (residual_norm_l1[7], l_norm_l1[7]),
-        (residual_norm_l1[7], l_norm_l1[7]+5)
+        "$\lambda$ = " + str(lambdas_l1[5]),
+        (residual_norm_l1[5], l_norm_l1[5]),
+        (residual_norm_l1[5], l_norm_l1[5]-1000)
     )
     plt.xlabel("$||y-\Gamma u||_2$")
     plt.ylabel("$||L u||_1$")
@@ -320,18 +333,18 @@ def plot_l_curves():
     plt.yscale("log")
     plt.xscale("log")
     plt.scatter(residual_norm_l1_trend, l_norm_l1_trend, color='blue')
+    plt.scatter(residual_norm_l1_trend[8], l_norm_l1_trend[8], color='red')
     plt.annotate(
         "$\lambda$ = " + str(lambdas_l1_trend[8]),
         (residual_norm_l1_trend[8], l_norm_l1_trend[8]),
-        (residual_norm_l1_trend[8], l_norm_l1_trend[8]-1.5)
+        (residual_norm_l1_trend[8]+1, l_norm_l1_trend[8])
     )
-    plt.ylim(top=5)
-    plt.yticks(ticks=[1,2,3,4], labels=["$10^0$",None,None,None])
+    plt.xticks(ticks=[3,4,6,10], labels=[None,None,None,"$10^1$"])
     plt.xlabel("$||y-\Gamma u||_2$")
     plt.ylabel("$||L u||_1$")
 
     plt.tight_layout()
-    plt.savefig("../figures/l_curves_all.pdf")
+    # plt.savefig("../figures/l_curves_all_redone.pdf")
     plt.show()
 
 if __name__ == "__main__":
