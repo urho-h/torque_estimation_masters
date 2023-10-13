@@ -31,7 +31,7 @@ def modal_analysis(A, B):
     freqs = omegas / (2 * np.pi)
     print(freqs)
 
-    vec = vec[: int(vec.shape[0] / 2)]
+    vec = vec[: int(vec.shape[1] / 2)]
     vec = vec[:, ::2]
     inds = np.argsort(np.abs(lam))
     eigenmodes = np.zeros(vec.shape)
@@ -111,14 +111,14 @@ def plot_PRBS_result():
     plt.xlabel("Frequency (Hz)")
     plt.ylabel("Amplitude (Nm)")
     plt.xlim(0, 70)
-    plt.annotate('$22.3$ Hz', xy=(21, 0.5), xycoords='data',
+    plt.annotate('$22.3$ Hz', xy=(21, 0.76), xycoords='data',
                 xytext=(0.05, .7), textcoords='axes fraction',
                 va='top', ha='left',
-                arrowprops=dict(facecolor='black', shrink=0.05))
-    plt.annotate('$33.3$ Hz', xy=(34., 0.5), xycoords='data',
-                xytext=(0.58, .7), textcoords='axes fraction',
+                arrowprops=dict(facecolor='black', width=2.5, headwidth=7, shrink=0.05))
+    plt.annotate('$33.3$ Hz', xy=(34., 0.6), xycoords='data',
+                xytext=(0.6, .7), textcoords='axes fraction',
                 va='top', ha='left',
-                arrowprops=dict(facecolor='black', shrink=0.05))
+                arrowprops=dict(facecolor='black', width=2.5, headwidth=7, shrink=0.05))
     plt.grid()
 
     plt.tight_layout()
@@ -127,6 +127,6 @@ def plot_PRBS_result():
 
 
 if __name__ == "__main__":
-    A, B = get_state_matrices()
-    modal_analysis(A, B)
-    # plot_PRBS_result()
+    # A, B = get_state_matrices()
+    # modal_analysis(A, B)
+    plot_PRBS_result()

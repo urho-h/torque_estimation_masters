@@ -299,12 +299,12 @@ def explicit_solution(sys, measurements, batch_size, overlap, times, lam=0.1, us
     input_estimates = []
 
     # for initial state estimation
-    C_full = np.eye(B.shape[0])
-    omat = de.O(A, C_full, bs)
-    gmat = de.gamma(A, B, C_full, bs)
+    # C_full = np.eye(B.shape[0])
+    # omat = de.O(A, C_full, bs)
+    # gmat = de.gamma(A, B, C_full, bs)
 
-    H = np.hstack([omat, gamma])
-    M = np.vstack([np.zeros(regul_matrix.shape), regul_matrix])
+    H = np.hstack([O, G])
+    M = np.vstack([np.zeros((regul_matrix.shape[0], O.shape[1])), regul_matrix])
 
     for i in progressbar(range(loop_len), "Calculating estimates: ", loop_len):
         if i == 0:

@@ -34,6 +34,7 @@ def input_and_state_estimation(load, meas, sim_times, batch_size, lam_tikh, lam_
     # include second torque transducer
     C_mod = np.insert(C, 3, np.zeros((1, C.shape[1])), 0)
     C_mod[3,22+18] += 2e4
+    print(C_mod)
     D_mod = np.zeros((C_mod.shape[0], B.shape[1]))
 
     n = len(sim_times)
@@ -93,7 +94,7 @@ def input_and_state_estimation(load, meas, sim_times, batch_size, lam_tikh, lam_
             meas[:,2:],
             load[:,0],
             load[:,-1],
-            np.mean(load[:,0])
+            0*np.mean(load[:,0])
         )
 
         if pickle_results:
@@ -106,8 +107,8 @@ def input_and_state_estimation(load, meas, sim_times, batch_size, lam_tikh, lam_
 
 
 def measurements_experiment(run_input_estimation=False):
-    sensor_data = np.loadtxt("../data/masters_data/processed_data/ramp_sensor.csv", delimiter=",")
-    motor_data = np.loadtxt("../data/masters_data/processed_data/ramp_motor.csv", delimiter=",")
+    sensor_data = np.loadtxt("../data/masters_data/processed_data/step_sensor.csv", delimiter=",")
+    motor_data = np.loadtxt("../data/masters_data/processed_data/step_motor.csv", delimiter=",")
     time = sensor_data[:,0]
 
     measurements = sensor_data[:,1:]
@@ -120,14 +121,14 @@ def measurements_experiment(run_input_estimation=False):
             measurements,
             time[:measurements.shape[0]],
             500,
+            0.1,
             10,
-            10,
-            run_tikh=True,
+            run_tikh=False,
             run_lasso=False,
-            use_trend_filter=True,
-            run_kf=False,
+            use_trend_filter=False,
+            run_kf=True,
             pickle_results=True,
-            fname='estimates/experiments_redone/ramp_experiment/hp_trend_lam10_'
+            fname='estimates/akf_vs_hp/step_0_mean'
         )
 
 
