@@ -175,7 +175,7 @@ def run_kalman_filter(times, meas_speeds, meas_torques, torques, motor, propelle
     )
 
     ## KALMAN FILTER DESIGN PARAMETERS
-    lag = 10
+    lag = 2 #10
     R = np.diag([0.05, 0.1, 0.2]) # measurement covariance R = E{v*v'}
     Q = 0.01*np.eye(43) # diagonal matrix with shape of the A matrix
 

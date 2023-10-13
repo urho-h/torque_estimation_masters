@@ -238,8 +238,8 @@ def state_space_matrices(inertia, stiff, damp, damp_ext, ratios, full_B=False):
 
 def c2d(A, B, ts):
     """
-    C2D computes a discrete-time model of a system (A_c,B_c) with sample time T_s.
-    The function returns matrices A,B of the discrete-time system.
+    C2D computes a discrete-time model of a system (A_c,B_c) with sample time ts.
+    The function returns matrices Ad, Bd of the discrete-time system.
     """
     m, n = A.shape
     nb = B.shape[1]
