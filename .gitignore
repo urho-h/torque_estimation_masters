@@ -47,3 +47,4 @@ data/*
 !data.txt
 !testbench_models
 !ice_excitation
+!masters_data/processed_data

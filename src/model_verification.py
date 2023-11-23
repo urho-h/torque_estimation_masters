@@ -121,6 +121,9 @@ def plot_unit_setpoint():
 
 
 def simulation_and_process_data():
+    """
+    This function is for processing the master's thesis measurements. The measured inputs can be applied on the testbench model in a simulation and the result can be compared to measured output.
+    """
     plot_sensor = True
     plot_motor = False
     check_sync = False
@@ -128,12 +131,13 @@ def simulation_and_process_data():
     save_processed_data = False
 
     s, e = 0, -1 # full data, sensor data slicing, s=start e=end
+    s, e = 260000, -180000 # no load 2000 rpm
     # s, e = 4500, -5000 # PRBS 2000 rpm
     # s, e = 42000, -7000 # impulse 2000 rpm, single impulse
     # s, e = 69000, -20000 # step 2000 rpm, single step
     # s, e = 300000, -370000 # sinusoidal load steady state 2000 rpm
     # s, e = 9000, -190000 # ramp dataset
-    s, e = 9000, -10000 # ice dataset
+    # s, e = 9000, -10000 # ice dataset
     # s, e = 900, -2000 # CFD dataset
     # s, e = 168000, -3000 # ice 2000 rpm dataset
     # s, e = 774000, -210000 # CFD 2000 rpm dataset
@@ -154,12 +158,12 @@ def simulation_and_process_data():
     time_raw = sensor_data[s:e,0]*25e-9
     time = time_raw-time_raw[0]
 
-    if np.any(time < 0):
-        time = np.linspace(
-            0,
-            len(sensor_data[s:e,0])/3012,
-            len(sensor_data[s:e,0])
-        )
+    # if np.any(time < 0):
+    #     time = np.linspace(
+    #         0,
+    #         len(sensor_data[s:e,0])/3012,
+    #         len(sensor_data[s:e,0])
+    #     )
 
     enc1_angle = (sensor_data[s:e,1])*(2*np.pi/20000)
     enc1_time_raw = sensor_data[s:e,2]*25e-9
@@ -246,24 +250,78 @@ def simulation_and_process_data():
 
     if save_processed_data:
         np.savetxt(
-            "../data/masters_data/processed_data/CFD_2000_sensor.csv",
+            "../data/masters_data/processed_data/no_load_2000_sensor.csv",
             measurements,
             delimiter=","
         )
         np.savetxt(
-            "../data/masters_data/processed_data/CFD_2000_motor.csv",
+            "../data/masters_data/processed_data/no_load_2000_motor.csv",
             motor_measurements,
             delimiter=","
         )
 
 
+def process_baseline_data(rot, case, pickle_data=False):
+    sensor_data = np.loadtxt(
+        (str(rot)).join(("../data/gear_loss/sensor/", case)),
+        delimiter=",",
+        skiprows=1
+    )
+
+    s, e = int(110*rot), -int(110*rot)
+    # s, e = int(2e5), -int(2e5)
+
+    time_raw = sensor_data[s:e,0]
+    time = time_raw-time_raw[0]
+
+    enc2_angle = (sensor_data[s:e,3])*(2*np.pi/360)
+    enc2_time_raw = sensor_data[s:e,4]
+    enc2_time = enc2_time_raw - enc2_time_raw[0]
+    enc4_angle = (sensor_data[s:e,7])*(2*np.pi/360)
+    enc4_time_raw = sensor_data[s:e,8]
+    enc4_time = enc4_time_raw - enc4_time_raw[0]
+
+    speed2 = np.gradient(enc2_angle, enc2_time)
+    speed4 = np.gradient(enc4_angle, enc4_time)
+
+    # torque sensors mixed up
+    torque2 = sensor_data[s:e,-2]
+    torque1 = sensor_data[s:e,-1]
+
+    speed2 = low_pass_filter(speed2, 500, 3012)
+    speed4 = low_pass_filter(speed4, 500, 3012)
+    torque1 = low_pass_filter(torque1, 500, 3012)
+    torque2 = low_pass_filter(torque2, 500, 3012)
+
+    motor_shaft_power = torque1*speed2
+    prop_shaft_power = torque2*speed4
+    power_loss = motor_shaft_power-prop_shaft_power
+
+    damping = (torque1-1/12*torque2)/(speed2+1/4*speed4)
+
+    # if pickle_data:
+    #     pickle_fn = (rot).join(("../data/gear_loss/pickle/", "rpm.pickle"))
+    #     with open(fname + "KF.pickle", 'wb') as handle:
+    #         pickle.dump(
+    #             [times_kf, input_estimates_kf, torque_estimates_kf],
+    #             handle,
+    #             protocol=pickle.HIGHEST_PROTOCOL
+    #         )
+
+    return np.mean(damping)
+
+
 if __name__ == "__main__":
     # simulation_and_process_data()
-    plot_unit_setpoint()
+    # plot_unit_setpoint()
 
-    # DONE: impulse data
-    # DONE: sinusoidal data
-    # DONE: step data
-    # DONE: ramp data
-    # DONE: ice data
-    # DONE: CFD data
+    speeds = [250, 500, 750, 1000, 1250, 1500]
+    damping_means = []
+    case = "rpm_CT_baseline_6%_GP1_0.csv"
+    case = "rpm_No_torque%_GP1.csv"
+    for rot in speeds:
+        damping_means.append(process_baseline_data(rot, case, pickle_data=False))
+
+    plt.plot(speeds, damping_means)
+    plt.plot(speeds, np.array(damping_means)*np.array(speeds))
+    plt.show()
