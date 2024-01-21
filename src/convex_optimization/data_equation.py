@@ -106,3 +106,12 @@ def second_difference_matrix(n, m):
     D2 = D2[:-2*m, :]
 
     return D2
+
+
+def dft_matrix(N):
+    # Incomplete code
+    n = np.arange(N)
+    k = n.reshape((N, 1))
+    W = np.exp(-2j * np.pi * k * n / N)
+
+    return W / np.sqrt(N)  # / N

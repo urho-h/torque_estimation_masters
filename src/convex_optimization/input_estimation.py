@@ -99,8 +99,9 @@ def get_data_equation_matrices(A, B, C, D, n, bs):
     O = de.O(A, C, bs)
     G = de.gamma(A, B, C, bs)
     L = np.eye(bs*B.shape[1])
+    W = de.dft_matrix(4)
 
-    return O, G, D2, L
+    return O, G, D2, L, W
 
 
 def progressbar(it, prefix="", size=60, out=sys.stdout):
@@ -224,17 +225,19 @@ def data_eq_simulation(sys, times, load, bs):
     return gmat @ u
 
 
-def estimate_input(sys, measurements, batch_size, overlap, times, lam=0.1, lam2=0.1, use_zero_init=True, use_lasso=False, use_elastic_net=False, use_trend_filter=False, pickle_data=False, fn="input_estimates_"):
+def estimate_input(sys, measurements, batch_size, overlap, times, lam=0.1, lam2=0.1, use_zero_init=True, use_lasso=False, use_elastic_net=False, use_trend_filter=False, use_dft=False, pickle_data=False, fn="input_estimates_"):
     dt = np.mean(np.diff(times))
     n = len(times)
     bs = batch_size + 2*overlap
     loop_len = int(n/batch_size)
 
     A, B, C, D = sys
-    O, G, D2, L = get_data_equation_matrices(A, B, C, D, n, bs)
+    O, G, D2, L, W = get_data_equation_matrices(A, B, C, D, n, bs)
 
     if use_trend_filter:
         regul_matrix = D2
+    elif use_dft:
+        regul_matrix = W
     else:
         regul_matrix = L
 

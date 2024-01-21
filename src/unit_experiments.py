@@ -26,7 +26,7 @@ def get_testbench_state_space(dt):
     return A, B, C, D
 
 
-def input_and_state_estimation(load, meas, sim_times, batch_size, lam_tikh, lam_lasso, overlap=50, run_tikh=False, run_lasso=False, run_elastic_net=False, run_kf=False, use_trend_filter=False, pickle_results=False, fname='estimation_results.pickle'):
+def input_and_state_estimation(load, meas, sim_times, batch_size, lam_tikh, lam_lasso, overlap=50, run_tikh=False, run_lasso=False, run_elastic_net=False, run_kf=False, use_trend_filter=False, use_dft=False, pickle_results=False, fname='estimation_results.pickle'):
     dt = np.mean(np.diff(sim_times))
     A, B, C, D = get_testbench_state_space(dt)
     sys = (A, B, C, D)
@@ -65,6 +65,7 @@ def input_and_state_estimation(load, meas, sim_times, batch_size, lam_tikh, lam_
             use_zero_init=True,
             use_lasso=True,
             use_trend_filter=use_trend_filter,
+            use_dft=use_dft,
             pickle_data=pickle_results,
             fn=fname
         )
@@ -107,8 +108,8 @@ def input_and_state_estimation(load, meas, sim_times, batch_size, lam_tikh, lam_
 
 
 def measurements_experiment(run_input_estimation=False):
-    sensor_data = np.loadtxt("../data/masters_data/processed_data/step_sensor.csv", delimiter=",")
-    motor_data = np.loadtxt("../data/masters_data/processed_data/step_motor.csv", delimiter=",")
+    sensor_data = np.loadtxt("../data/masters_data/processed_data/sin_sensor.csv", delimiter=",")
+    motor_data = np.loadtxt("../data/masters_data/processed_data/sin_motor.csv", delimiter=",")
     time = sensor_data[:,0]
 
     measurements = sensor_data[:,1:]
@@ -120,15 +121,16 @@ def measurements_experiment(run_input_estimation=False):
             load,
             measurements,
             time[:measurements.shape[0]],
-            500,
-            0.1,
-            10,
+            500,  # batch size
+            0.1,  # lam1
+            10,  # lam2
             run_tikh=False,
-            run_lasso=False,
+            run_lasso=True,
             use_trend_filter=False,
-            run_kf=True,
+            use_dft=True,
+            run_kf=False,
             pickle_results=True,
-            fname='estimates/akf_vs_hp/step_0_mean'
+            fname='estimates/sparse_sin/dft'
         )
 
 
