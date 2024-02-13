@@ -42,6 +42,8 @@ Thumbs.db
 # TDMS files #
 *.tdms
 
+src/full_scale/*
+
 data/*
 !step
 !data.txt
