@@ -47,7 +47,7 @@ src/full_scale/*
 !data/
 
 data/*
-!data/masters_data/*
+!data/masters_data/
 !data.txt
 !testbench_models
 !ice_excitation
