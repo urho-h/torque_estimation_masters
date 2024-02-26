@@ -104,7 +104,7 @@ def get_data_equation_matrices(A, B, C, D, n, bs):
     return O, G, D2, L, W
 
 
-def progressbar(it, prefix="", size=60, out=sys.stdout):
+def progressbar(it, prefix="", size=60, out=sys.stdout, show_print=False):
     """
     A function used to display a progress bar in the console.
     """
@@ -116,7 +116,8 @@ def progressbar(it, prefix="", size=60, out=sys.stdout):
     for i, item in enumerate(it):
         yield item
         show(i+1)
-    print("\n", flush=True, file=out)
+    if show_print:
+        print("\n", flush=True, file=out)
 
 
 def L_curve(sys, measurements, times, lambdas, use_zero_init=True, use_l1=False, use_trend=False):
@@ -284,32 +285,30 @@ def estimate_input(sys, measurements, batch_size, overlap, times, lam=0.1, lam2=
     return input_estimates
 
 
-def explicit_solution(sys, measurements, batch_size, overlap, times, lam=0.1, use_trend_filter=False, pickle_data=False, fn="input_estimates_"):
-
+def ell2_analytical(ss, measurements, batch_size, overlap, times, lam=0.1, use_trend_filter=False, print_bar=True, pickle_data=False, fn='input_estimates'):
+    """
+    Analytical solution of the l2 regularized LS problem.
+    Minimizes the sum of squared residuals, including an l2 constraint.
+    """
     dt = np.mean(np.diff(times))
     n = len(times)
     bs = batch_size + 2*overlap
     loop_len = int(n/batch_size)
 
-    A, B, C, D = sys
-    O, G, D2, L = get_data_equation_matrices(A, B, C, D, n, bs)
+    A, B, C, D = ss  # state space model
+    O_mat, G, D2, L, W = get_data_equation_matrices(A, B, C, D, n, bs)  # data equation matrices
 
     if use_trend_filter:
-        regul_matrix = D2
+        regul_matrix = D2 # regularization matrix
     else:
         regul_matrix = L
 
+    H = np.hstack([O_mat, G])  # extended observation and impulse response matrix
+    M = np.hstack([np.zeros((regul_matrix.shape[0], O_mat.shape[1])), regul_matrix])  # extended regularization matrix
+
     input_estimates = []
 
-    # for initial state estimation
-    # C_full = np.eye(B.shape[0])
-    # omat = de.O(A, C_full, bs)
-    # gmat = de.gamma(A, B, C_full, bs)
-
-    H = np.hstack([O, G])
-    M = np.vstack([np.zeros((regul_matrix.shape[0], O.shape[1])), regul_matrix])
-
-    for i in progressbar(range(loop_len), "Calculating estimates: ", loop_len):
+    for i in progressbar(range(loop_len), "Calculating estimates: ", loop_len, show_print=print_bar):
         if i == 0:
             batch = measurements[:bs,:]
         elif i == loop_len-1:
@@ -319,12 +318,91 @@ def explicit_solution(sys, measurements, batch_size, overlap, times, lam=0.1, us
             batch = measurements[i*batch_size-overlap:(i+1)*batch_size+overlap,:]
 
         y = batch.reshape(-1,1)
+
         estimate = LA.inv(H.T @ H + lam*(M.T @ M)) @ H.T @ y
 
-        input_estimates.append(estimate)
+        input_estimates.append(estimate)  # estimate includes initial state estimate
 
         if pickle_data:
             with open(fn + str(i) + ".pickle", 'wb') as handle:
-                pickle.dump([estimate, x_est], handle, protocol=pickle.HIGHEST_PROTOCOL)
+                pickle.dump([estimate], handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     return input_estimates
+
+
+def ell2_analytical_with_covariance(ss, measurements, batch_size, overlap, times, lam=0.1, use_trend_filter=False, print_bar=True):
+    """
+    Analytical solution of the l2 regularized LS problem.
+    Minimizes the sum of squared residuals, including an l2 constraint and known covariance for input and output.
+    Initial state is always assumed zero.
+    """
+    dt = np.mean(np.diff(times))
+    n = len(times)
+    bs = batch_size + 2*overlap
+    loop_len = int(n/batch_size)
+
+    A, B, C, D = ss  # state space model
+    O_mat, G, D2, L = get_data_equation_matrices(A, B, C, D, n, bs)  # data equation matrices
+
+    if use_trend_filter:
+        regul_matrix = D2 # regularization matrix
+    else:
+        regul_matrix = L
+
+    # measurement noise covariance matrix
+    R = np.diag([0.05, 0.10, 0.20])
+    #R = np.diag([0.03, 0.20, 0.01])
+    R_inv = LA.inv(R)
+    I = np.eye(bs)
+    # measurement noise covariance assembled as a diagonal block matrix
+    WR = np.kron(I, R_inv)
+
+    input_estimates = []
+
+    for i in progressbar(range(loop_len), "Calculating estimates: ", loop_len, show_print=print_bar):
+        if i == 0:
+            batch = measurements[:bs,:]
+        elif i == loop_len-1:
+            batch = np.zeros((bs, measurements.shape[1]))
+            # zero padding to finish estimation loop correctly
+        else:
+            batch = measurements[i*batch_size-overlap:(i+1)*batch_size+overlap,:]
+
+        y = batch.reshape(-1,1)
+
+        #estimate = LA.inv(H.T @ H + lam*(M.T @ M)) @ H.T @ y
+        estimate = LA.inv(G.T @ WR @ G + lam*(regul_matrix.T@regul_matrix)) @ G.T @ WR @ y
+
+        input_estimates.append(estimate)
+
+    return input_estimates
+
+
+def process_estimates(n_batches, overlap, estimates, nstates=43):
+    """
+    Here the input and initial state estimates are processed.
+    Overlapped sections are discarded and the input estimate batches are stacked one after the other.
+    """
+    motor_estimates, propeller_estimates = [], []
+    motor_est_overlap, prop_est_overlap = [], []
+    for i in range(n_batches):
+        if i == 0:
+            all_motor_estimates = estimates[i][nstates::2]
+            motor_est_overlap.append(all_motor_estimates)
+            motor_estimates = all_motor_estimates[:-2*overlap]
+            all_propeller_estimates = estimates[i][(nstates+1)::2]
+            prop_est_overlap.append(all_propeller_estimates)
+            propeller_estimates = all_propeller_estimates[:-2*overlap]
+        else:
+            all_motor_estimates = estimates[i][nstates::2]
+            motor_est_overlap.append(all_motor_estimates)
+            motor_estimates = np.concatenate(
+                (motor_estimates, all_motor_estimates[overlap:-overlap])
+            )
+            all_propeller_estimates = estimates[i][(nstates+1)::2]
+            prop_est_overlap.append(all_propeller_estimates)
+            propeller_estimates = np.concatenate(
+                (propeller_estimates, all_propeller_estimates[overlap:-overlap])
+            )
+
+    return motor_estimates, propeller_estimates

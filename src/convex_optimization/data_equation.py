@@ -100,6 +100,7 @@ def gamma(A, B, C, n):
 
 
 def second_difference_matrix(n, m):
+    # Second difference matrix for two inputs
     D2 = np.eye(n*m) - 2*np.eye(n*m, k=2) + np.eye(n*m, k=4)
 
     # delete incomplete rows
@@ -109,7 +110,6 @@ def second_difference_matrix(n, m):
 
 
 def dft_matrix(N):
-    # Incomplete code
     n = np.arange(N)
     k = n.reshape((N, 1))
     W = np.exp(-2j * np.pi * k * n / N)
