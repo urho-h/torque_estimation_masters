@@ -305,10 +305,15 @@ def ell2_analytical(ss, measurements, batch_size, overlap, times, lam=0.1, use_t
 
     H = np.hstack([O_mat, G])  # extended observation and impulse response matrix
     M = np.hstack([np.zeros((regul_matrix.shape[0], O_mat.shape[1])), regul_matrix])  # extended regularization matrix
+    Ht = H.T
+    HtH = Ht @ H
+    MtM = M.T @ M
+    # Least-squares solution: u_hat = LS @ y
+    LS = LA.inv(HtH + lam*MtM) @ Ht
 
     input_estimates = []
 
-    for i in progressbar(range(loop_len), "Calculating estimates: ", loop_len, show_print=print_bar):
+    for i in range(loop_len):
         if i == 0:
             batch = measurements[:bs,:]
         elif i == loop_len-1:
@@ -318,9 +323,7 @@ def ell2_analytical(ss, measurements, batch_size, overlap, times, lam=0.1, use_t
             batch = measurements[i*batch_size-overlap:(i+1)*batch_size+overlap,:]
 
         y = batch.reshape(-1,1)
-
-        estimate = LA.inv(H.T @ H + lam*(M.T @ M)) @ H.T @ y
-
+        estimate = LS @ y
         input_estimates.append(estimate)  # estimate includes initial state estimate
 
         if pickle_data:
@@ -356,6 +359,8 @@ def ell2_analytical_with_covariance(ss, measurements, batch_size, overlap, times
     I = np.eye(bs)
     # measurement noise covariance assembled as a diagonal block matrix
     WR = np.kron(I, R_inv)
+    # Least-squares solution: u_hat = LS @ y
+    LS = LA.inv(G.T @ WR @ G + lam*(regul_matrix.T@regul_matrix)) @ G.T @ WR
 
     input_estimates = []
 
@@ -370,15 +375,78 @@ def ell2_analytical_with_covariance(ss, measurements, batch_size, overlap, times
 
         y = batch.reshape(-1,1)
 
-        #estimate = LA.inv(H.T @ H + lam*(M.T @ M)) @ H.T @ y
-        estimate = LA.inv(G.T @ WR @ G + lam*(regul_matrix.T@regul_matrix)) @ G.T @ WR @ y
+        estimate = LS @ y
 
         input_estimates.append(estimate)
 
     return input_estimates
 
 
-def process_estimates(n_batches, overlap, estimates, nstates=43):
+def conjugate_gradient(ss, measurements, batch_size, overlap, times, tol=0.1, max_iters=1000, print_bar=True, pickle_data=False, fn='input_estimates'):
+    """
+    Conjugate gradient method.
+    """
+    dt = np.mean(np.diff(times))
+    n = len(times)
+    bs = batch_size + 2*overlap
+    loop_len = int(n/batch_size)
+
+    A, B, C, D = ss  # state space model
+    O_mat, G, D2, L = get_data_equation_matrices(A, B, C, D, n, bs)  # data equation matrices
+    H = np.hstack([O_mat, G])  # extended observation and impulse response matrix
+    M = np.hstack(
+        [np.zeros((regul_matrix.shape[0], O_mat.shape[1])), regul_matrix]
+    )  # extended regularization matrix
+    WtW = H.T @ H  # Normal equation
+    Ht = H.T
+
+    input_estimates = []
+
+    for i in progressbar(range(loop_len), "Calculating estimates: ", loop_len, show_print=print_bar):
+        if i == 0:
+            batch = measurements[:bs,:]
+        elif i == loop_len-1:
+            batch = np.zeros((bs, measurements.shape[1]))  # last batch is zeros
+        else:
+            batch = measurements[i*batch_size-overlap:(i+1)*batch_size+overlap,:]
+
+        Y = batch.reshape(-1,1)
+        y = Ht @ Y  # Normal equation
+
+        # init
+        converged = False
+        x_k = np.zeros((WtW.shape[0],1))
+        r_k = y - WtW @ x_k
+        if np.linalg.norm(r_k) < tol: converged = True
+        p_k = r_k
+        k = 0
+        residuals = []
+
+        # Conjugate gradient loop
+        while not converged:
+            a_k = (r_k.T @ r_k) / (p_k.T @ WtW @ p_k)
+            x_k += a_k * p_k
+            r_k_new = r_k - a_k * WtW @ p_k
+            if np.linalg.norm(r_k_new) < tol: converged = True
+            b_k = (r_k_new.T @ r_k_new) / (r_k.T @ r_k)
+            p_k = r_k_new + b_k * p_k
+            r_k = r_k_new
+            residuals.append(np.linalg.norm(r_k))
+            k += 1
+            if k > max_iters: converged = True
+
+        print("Number of iterations: ", k)
+
+        input_estimates.append(x_k)
+
+        if pickle_data:
+            with open(fn + str(i) + ".pickle", 'wb') as handle:
+                pickle.dump([estimate], handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    return input_estimates
+
+
+def process_estimates(n_batches, overlap, estimates, nstates=0):
     """
     Here the input and initial state estimates are processed.
     Overlapped sections are discarded and the input estimate batches are stacked one after the other.
@@ -406,3 +474,66 @@ def process_estimates(n_batches, overlap, estimates, nstates=43):
             )
 
     return motor_estimates, propeller_estimates
+
+
+def trend_filter_cvx(ss, measurements, batch_size, overlap, times, lam=0.1, use_trend_filter=False, print_bar=True, pickle_data=False, fn='input_estimates'):
+    """
+    Analytical solution of the l2 regularized LS problem.
+    Minimizes the sum of squared residuals, including an l2 constraint.
+    """
+    dt = np.mean(np.diff(times))
+    n = len(times)
+    bs = batch_size + 2*overlap
+    loop_len = int(n/batch_size)
+
+    A, B, C, D = ss  # state space model
+    O_mat, G, D2, L, W = get_data_equation_matrices(A, B, C, D, n, bs)  # data equation matrices
+
+    if use_trend_filter:
+        regul_matrix = D2 # regularization matrix
+    else:
+        regul_matrix = L
+
+    input_estimates = []
+
+    for i in range(loop_len):
+        if i == 0:
+            batch = measurements[:bs,:]
+        elif i == loop_len-1:
+            batch = np.zeros((bs, measurements.shape[1]))
+            # zero padding to finish estimation loop correctly
+        else:
+            batch = measurements[i*batch_size-overlap:(i+1)*batch_size+overlap,:]
+
+        y = batch.reshape(-1,1)
+        eps = 10
+
+        # define optimization variables
+        uhat_cvx = cp.Variable((regul_matrix.shape[1], 1), complex=False)
+
+        # define objective function
+        objective = cp.Minimize(
+            cp.sum_squares(
+                y - G @ uhat_cvx
+            ) + lam * cp.sum_squares(regul_matrix @ uhat_cvx)
+        )
+
+        # define constraints
+        constraints = [
+            cp.abs( y - G @ uhat_cvx ) <= eps
+        ]
+
+        # define problem
+        prob = cp.Problem(objective, constraints)
+
+        # solve optimizaiton problem
+        prob.solve()
+        estimate = uhat_cvx.value
+        print(i, estimate)
+        input_estimates.append(estimate)  # estimate includes initial state estimate
+
+        if pickle_data:
+            with open(fn + str(i) + ".pickle", 'wb') as handle:
+                pickle.dump([estimate], handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    return input_estimates

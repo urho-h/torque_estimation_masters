@@ -43,6 +43,7 @@ Thumbs.db
 *.tdms
 
 src/full_scale/*
+src/full_scale/data/*
 
 !data/
 
