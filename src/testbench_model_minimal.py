@@ -67,12 +67,12 @@ def testbench_powertrain():
 
     assembly = ot.Assembly(shaft_elements=shafts, disk_elements=disks, gear_elements=gears)
     _, f, _ = assembly.modal_analysis()
-    print("Eigenfrequencies (Hz): ", f/(2*np.pi))
+    # print("Eigenfrequencies (Hz): ", f/(2*np.pi))
 
     return assembly
 
 
-def get_testbench_state_space(dt):
+def get_testbench_state_space(dt, use_motor=False):
     """
     This function returns the discrete-time state-space matrices of the testbench model.
     """
@@ -86,7 +86,10 @@ def get_testbench_state_space(dt):
 
     A, B = assembly.continuous_2_discrete(AcX, BcX, dt)
     C = np.zeros((4, A.shape[0]))
-    C[2,8] += 1
+    if use_motor:
+        C[2,0] += 1
+    else:
+        C[2,8] += 1
     C[3,18] += 1
     C[0,27] += 1
     C[1,28] += 1
@@ -94,14 +97,21 @@ def get_testbench_state_space(dt):
 
     # C and D without propeller shaft torque
     c = np.zeros((3, A.shape[0]))
-    c[2,8] += 1
+    if use_motor:
+        c[2,0] += 1
+    else:
+        c[2,8] += 1
     c[0,27] += 1
     c[1,28] += 1
     d = np.zeros((c.shape[0], BcX.shape[1]))
+    print(A.shape)
 
     return A, B, C, D, c, d
 
 
 if __name__ == "__main__":
     assembly = testbench_powertrain()
+    plot_tools = ot.Plots(assembly)
+    plot_tools.plot_assembly()
     print(assembly)
+    _, _, _, _, _ = get_testbench_state_space(1e-3, use_motor=False)

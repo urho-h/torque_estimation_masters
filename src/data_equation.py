@@ -128,7 +128,7 @@ def get_data_equation_matrices(A, B, C, D, n, bs):
     return O_mat, G, D2, L
 
 
-def ell2_analytical(ss, ss2, measurements, batch_size, overlap, times, lam1=0, lam2=0.1, use_trend_filter=False, print_bar=True):
+def ell2_analytical(ss, ss2, measurements, batch_size, overlap, times, lam1=0, lam2=0.1, use_trend_filter=False, print_bar=True, full_scale=False):
     """
     Analytical solution of the l2 regularized LS problem.
     Minimizes the sum of squared residuals, including an l2 constraint.
@@ -153,11 +153,19 @@ def ell2_analytical(ss, ss2, measurements, batch_size, overlap, times, lam1=0, l
     S = (np.eye(O_mat.shape[1])-np.eye(O_mat.shape[1], k=1))
     # initial state regularization is set to zero at gear locations and
     # where state quantity changes (tau -> theta_dot)
-    S[10] *= 0  # gear 1 torque
-    S[15] *= 0  # gear 2 torque
-    S[20] *= 0  # tau_n - theta_dot_1
-    S[32] *= 0  # gear 1 speed
-    S[37] *= 0  # gear 2 speed
+    if full_scale:
+        S[11] *= 0  # gear 1 torque
+        S[14] *= 0  # gear 2 torque
+        S[16] *= 0  # tau_n - theta_dot_1
+        S[32] *= 0  # gear 1 speed
+        S[34] *= 0  # gear 2 speed
+    else:
+        S[10] *= 0  # gear 1 torque
+        S[15] *= 0  # gear 2 torque
+        S[20] *= 0  # tau_n - theta_dot_1
+        S[32] *= 0  # gear 1 speed
+        S[37] *= 0  # gear 2 speed
+
     Id = np.vstack([
         S,
         np.zeros((regul_matrix.shape[0]-O_mat.shape[1], O_mat.shape[1]))
@@ -168,7 +176,13 @@ def ell2_analytical(ss, ss2, measurements, batch_size, overlap, times, lam1=0, l
     ])  # extended regularization matrix
 
     # measurement noise covariance matrix
-    R = np.diag([0.05, 0.10, 0.20])
+    if full_scale:
+        R = np.eye(2)
+        n_states = 35
+    else:
+        R = np.diag([0.10, 0.10, 0.10])  # NOTE: for simulation
+        # R = np.diag([0.05, 0.10, 0.20])
+        n_states = 43
     R_inv = LA.inv(R)
     I = np.eye(bs)
     # measurement noise covariance assembled as a diagonal block matrix
@@ -182,11 +196,11 @@ def ell2_analytical(ss, ss2, measurements, batch_size, overlap, times, lam1=0, l
     A2, B2, c, d, dt_ss2 = ss2 # for state reconstruction
     O_mat2, G2, D22, L2 = get_data_equation_matrices(A2, B2, c, d, n, bs)  # data equation matrices
 
-    for i in progressbar(range(loop_len), "Calculating estimates: ", loop_len, show_print=print_bar):
+    for i in range(loop_len):
         if i == 0:
             batch = measurements[:bs,:]
-        #elif i == loop_len-1:
-            #batch = np.zeros((bs, measurements.shape[1]))
+        elif i == loop_len-1 and full_scale:
+            batch = np.zeros((bs, measurements.shape[1]))
             # zero padding to finish estimation loop correctly
         else:
             batch = measurements[i*batch_size-overlap:(i+1)*batch_size+overlap,:]
@@ -196,13 +210,13 @@ def ell2_analytical(ss, ss2, measurements, batch_size, overlap, times, lam1=0, l
         estimate = LS @ y
         input_estimates.append(estimate)
 
-        state_estimate = O_mat2 @ estimate[:43].reshape(-1,1) + G2 @ estimate[43:].reshape(-1,1)
+        state_estimate = O_mat2 @ estimate[:n_states].reshape(-1,1) + G2 @ estimate[n_states:].reshape(-1,1)
         state_estimates.append(state_estimate)
 
     return input_estimates, state_estimates
 
 
-def progressbar(it, prefix="", size=60, out=sys.stdout, show_print=False):
+def progressbar(it, prefix="", size=1, out=sys.stdout, show_print=False):
     """
     A function used to display a progress bar in the console.
     """
